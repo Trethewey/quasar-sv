@@ -23,6 +23,7 @@ The mark is a quasar: a luminous core, a doppler-bright accretion disk, and rela
 | `quasar-mark-{256,512,1024}.png` | Symbol on dark (transparent) |
 | `quasar-mark-light-{256,512}.png` | Symbol on light (transparent) |
 | `quasar-banner-dark.png` / `quasar-banner-light.png` | README / social headers |
+| `quasar-github-dark.png` / `quasar-github-light.png` | **GitHub headers** — backgrounds matched to GitHub's canvas (`#0d1117` / `#ffffff`) so they blend seamlessly |
 
 ## Common references
 
@@ -34,6 +35,16 @@ The mark is a quasar: a luminous core, a doppler-bright accretion disk, and rela
 
 <!-- Animated mark / loading spinner -->
 <img src="brand/quasar-mark-animated.svg" width="120" alt="loading">
+```
+
+### Theme-aware GitHub header (auto dark/light)
+Drop this at the top of your `README.md` — GitHub swaps the image to match the viewer's theme and it blends into the page background:
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/png/quasar-github-dark.png">
+  <img alt="Quasar" src="brand/png/quasar-github-light.png" width="640">
+</picture>
 
 <!-- README header (GitHub) -->
 <img src="brand/png/quasar-banner-dark.png" alt="Quasar" width="640">
