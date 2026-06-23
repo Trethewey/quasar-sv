@@ -427,8 +427,9 @@ def main(argv: list[str] | None = None) -> int:
     _add_lineage_args(p_run)
     p_run.set_defaults(func=cmd_run)
 
-    p_scan = sub.add_parser("scan-cram",
-                            help="run the pysam-based read scanner on a BAM/CRAM")
+    p_scan = sub.add_parser("call",
+                            aliases=["scan-cram"],
+                            help="call structural variants from a BAM/CRAM")
     p_scan.add_argument("--sample", required=True)
     p_scan.add_argument("--bam", required=True, help="BAM or CRAM path")
     p_scan.add_argument("--reference", required=True, help="FASTA matching the CRAM @SQ")

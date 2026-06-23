@@ -1,16 +1,36 @@
 <p align="center">
-  <img src="brand/png/quasar-banner-dark.png#gh-dark-mode-only" alt="Quasar" width="640">
-  <img src="brand/png/quasar-banner-light.png#gh-light-mode-only" alt="Quasar" width="640">
+  <img src="brand/png/quasar-banner-dark.png" alt="Quasar" width="720">
 </p>
 
-Lymphoma structural-variant and fusion caller. Reads aligned reads
-(BAM/CRAM) and writes VCF.
+A structural-variant caller built for lymphoma.
 
-Built for lymphoma diagnostics: detects the canonical translocations
-(IGH-BCL2, IGH-MYC, BCL6-IGH and the rest), handles IG-switch-region
-artefacts in GRCh38, and tiers calls by clinical confidence.
+Quasar reads aligned sequencing data (BAM or CRAM) and finds the
+translocations that matter clinically in lymphoma — the canonical IGH
+partner fusions, BCL6 rearrangements, NPM1-ALK, and the rest. It writes
+the calls to a VCF and a per-sample clinical report.
 
-Status: alpha (v0.1.0).
+## Why
+
+The general-purpose SV callers — Manta, GRIDSS, Delly, SvABA, TIDDIT —
+are built for tumours in general, not lymphoma in particular. Three things
+specifically:
+
+1. **They miss IG-switch translocations.** Chimeric reads from t(3;14)
+   BCL6-IGH and similar events route into a known GRCh38 reference
+   artefact at chr2:32916 and never reach the true partner. Quasar's
+   rescue layer reconstructs the underlying translocation from the
+   artefact-mediated signal.
+
+2. **They don't know which gene pairs are clinically meaningful.**
+   Quasar carries a curated table of lymphoma canonical partners (IGH-BCL2,
+   IGH-MYC, BCL6-IGH and the others) and tiers any annotated pair with
+   non-trivial evidence to a clinical confidence level — even when a
+   general-purpose caller would filter it as low-quality noise.
+
+3. **They treat aSHM hotspot artefacts and V(D)J recombination as real
+   SVs.** Quasar's classification layer recognises these patterns and
+   demotes them out of the clinical tier unless multiple callers
+   independently agree on them.
 
 ## Install
 
@@ -18,51 +38,49 @@ Status: alpha (v0.1.0).
 pip install quasar-sv
 ```
 
-CLI command is `quasar`. Python package is `quasarsv`.
+The CLI command is `quasar`. The Python package imports as `quasarsv`.
 
-## Use
+## Run
 
 ```bash
-quasar scan-cram \
+quasar call \
     --sample SAMPLE_ID \
-    --bam aligned.cram \
+    --bam SAMPLE.cram \
     --reference GRCh38.fasta \
     --output-dir output/SAMPLE_ID
 ```
 
 Outputs in `output/SAMPLE_ID/`:
 
-- `SAMPLE_ID.fusions.tsv` — schema-of-record (one row per call, tiered T1/T2/T3)
-- `SAMPLE_ID.fusions.vcf.gz` — VCF 4.3 export
-- `brochure_SAMPLE_ID.html` — per-sample clinical report
+- **`SAMPLE_ID.fusions.tsv`** — every call with tier, partner genes,
+  evidence summary, and QC flags
+- **`SAMPLE_ID.fusions.vcf.gz`** — same calls as VCF 4.3
+- **`brochure_SAMPLE_ID.html`** — per-sample clinical brochure
 
-## What it does
+Tiers:
 
-Twelve-step pipeline. Full walkthrough in `docs/algorithm_vignette.md`.
+- **T1** — high confidence. A known canonical lymphoma partner pair
+  with strong evidence, or a call backed by multiple independent signals.
+- **T2** — moderate confidence. Annotated lymphoma partner with weaker
+  evidence, or PASS in two or more callers.
+- **T3** — surfaced for review; usually noise.
 
-- pysam scan of driver loci, IG/TR loci, and known reference artefact
-  hotspots — split-read and discordant-pair evidence
-- DBSCAN clustering of breakpoint pairs
-- Tiering on independent evidence types (T1 / T2 / T3)
-- Lymphoma annotation: driver-locus tagging + canonical-partner
-  promotion from `data/known_partners.tsv`
-- chr2:32916 polyG-attractor rescue — recovers IG-driver translocations
-  whose chimeric reads route into the GRCh38 reference artefact
-- Demotion of intra-gene single-caller T1 calls (V(D)J / aSHM-hotspot
-  noise) unless multi-caller PASS preserves them
+## Documentation
 
-## Scope (alpha)
+- `docs/algorithm_vignette.md` — full algorithm walkthrough
+- `docs/benchmark_results.md` — head-to-head benchmark numbers + caveats
+- `docs/panel_validation.md` — running on targeted panel BAMs
+- `docs/quasar_vignette.docx` — printable summary
 
-Tested on a 14-sample lymphoma WGS cell-line cohort.
-See `docs/benchmark_results.md` for the benchmark numbers and the
-full list of caveats (held-out validation not yet run, patient-sample
-performance unmeasured, GRIDSS not run at scale).
+## Scope
 
-Not for clinical decision-making without site-specific validation.
+Alpha release. Validated on a 14-sample lymphoma cell-line WGS cohort.
+Held-out validation, broad-cohort generalisability, and patient-sample
+performance are unmeasured. **Not for clinical decision-making without
+site-specific validation.**
 
-## Author + license
+## Author
 
-Chris Trethewey · [christrethewey.dev](https://christrethewey.dev/) ·
-[github.com/Trethewey](https://github.com/Trethewey)
+Chris Trethewey — [christrethewey.dev](https://christrethewey.dev/) — [github.com/Trethewey](https://github.com/Trethewey)
 
-Apache-2.0. See `LICENSE` and `NOTICE`.
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
