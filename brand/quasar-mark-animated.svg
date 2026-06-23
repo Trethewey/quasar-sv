@@ -29,14 +29,14 @@
       <stop offset="1" stop-color="#b388ff" stop-opacity="0"></stop>
     </linearGradient>
     <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"></feGaussianBlur></filter>
-    <filter id="big" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="16"></feGaussianBlur></filter>
+    <filter id="big" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="11"></feGaussianBlur></filter>
     <clipPath id="front"><rect x="30" y="200" width="340" height="190"></rect></clipPath>
     <path id="orb1" d="M50,200 a150,46 0 1,0 300,0 a150,46 0 1,0 -300,0"></path>
     <path id="orb2" d="M80,200 a120,35 0 1,0 240,0 a120,35 0 1,0 -240,0"></path>
     
   </defs>
 
-  <circle cx="200" cy="200" r="180" fill="url(#halo)" filter="url(#big)"></circle>
+  <circle cx="200" cy="200" r="150" fill="url(#halo)" filter="url(#big)"></circle>
 
   
   <g transform="rotate(-22 200 200)">

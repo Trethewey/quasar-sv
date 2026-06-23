@@ -29,10 +29,10 @@
       <stop offset="1" stop-color="#b388ff" stop-opacity="0"></stop>
     </linearGradient>
     <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"></feGaussianBlur></filter>
-    <filter id="big" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="16"></feGaussianBlur></filter>
+    <filter id="big" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="11"></feGaussianBlur></filter>
     <clipPath id="front"><rect x="30" y="200" width="340" height="190"></rect></clipPath>
   </defs>
-  <circle cx="200" cy="200" r="180" fill="url(#halo)" filter="url(#big)"></circle>
+  <circle cx="200" cy="200" r="150" fill="url(#halo)" filter="url(#big)"></circle>
   <g transform="rotate(-22 200 200)">
     <ellipse cx="200" cy="200" rx="174" ry="54" fill="none" stroke="url(#disk)" stroke-width="5" opacity="0.4"></ellipse>
     <ellipse cx="200" cy="200" rx="150" ry="46" fill="none" stroke="url(#disk)" stroke-width="22" opacity="0.5" filter="url(#soft)"></ellipse>
