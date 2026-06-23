@@ -2,85 +2,105 @@
   <img src="brand/png/quasar-banner-dark.png" alt="Quasar" width="720">
 </p>
 
-A structural-variant caller built for lymphoma.
+[![Licence](https://img.shields.io/badge/licence-Apache_2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](#scope-and-limitations)
 
-Quasar reads aligned sequencing data (BAM or CRAM) and finds the
-translocations that matter clinically in lymphoma — the canonical IGH
-partner fusions, BCL6 rearrangements, NPM1-ALK, and the rest. It writes
-the calls to a VCF and a per-sample clinical report.
+Quasar is a structural-variant caller for next-generation sequencing data,
+specialised for lymphoma diagnostics. It identifies clinically actionable
+translocations — including IGH-BCL2, IGH-MYC, BCL6-IGH, NPM1-ALK and the
+canonical lymphoma partner panel — from aligned reads in BAM or CRAM,
+and emits results as VCF 4.3 alongside a per-sample clinical report.
 
-## Why
+## Overview
 
-The general-purpose SV callers — Manta, GRIDSS, Delly, SvABA, TIDDIT —
-are built for tumours in general, not lymphoma in particular. Three things
-specifically:
+Quasar combines a pysam-based read scanner with lymphoma-specific
+annotation and tier-promotion logic. Three design choices distinguish
+it from general-purpose SV callers:
 
-1. **They miss IG-switch translocations.** Chimeric reads from t(3;14)
-   BCL6-IGH and similar events route into a known GRCh38 reference
-   artefact at chr2:32916 and never reach the true partner. Quasar's
-   rescue layer reconstructs the underlying translocation from the
-   artefact-mediated signal.
+**Artefact-aware translocation rescue.** Chimeric reads from t(3;14)
+BCL6-IGH and related IG-switch events route into a known GRCh38
+reference artefact at chr2:32916, where they are absorbed by a
+poly-G motif and lost to ordinary detection. Quasar's rescue layer
+reconstructs the underlying translocation from artefact-mediated
+signal.
 
-2. **They don't know which gene pairs are clinically meaningful.**
-   Quasar carries a curated table of lymphoma canonical partners (IGH-BCL2,
-   IGH-MYC, BCL6-IGH and the others) and tiers any annotated pair with
-   non-trivial evidence to a clinical confidence level — even when a
-   general-purpose caller would filter it as low-quality noise.
+**Canonical-partner annotation.** A curated table of lymphoma
+translocation partners drives clinical-tier promotion of annotated
+pairs, including events that general-purpose callers filter as
+low-quality noise.
 
-3. **They treat aSHM hotspot artefacts and V(D)J recombination as real
-   SVs.** Quasar's classification layer recognises these patterns and
-   demotes them out of the clinical tier unless multiple callers
-   independently agree on them.
+**Non-clinical event demotion.** Recurrent V(D)J recombination events
+and aSHM-hotspot signals are demoted from the clinical tier unless
+corroborated by multiple independent callers.
 
-## Install
+## Installation
 
 ```bash
 pip install quasar-sv
 ```
 
-The CLI command is `quasar`. The Python package imports as `quasarsv`.
+CLI entry point: `quasar`. Python package: `quasarsv`.
 
-## Run
+## Quick start
 
 ```bash
 quasar call \
     --sample SAMPLE_ID \
-    --bam SAMPLE.cram \
+    --bam aligned.cram \
     --reference GRCh38.fasta \
     --output-dir output/SAMPLE_ID
 ```
 
-Outputs in `output/SAMPLE_ID/`:
+## Output
 
-- **`SAMPLE_ID.fusions.tsv`** — every call with tier, partner genes,
-  evidence summary, and QC flags
-- **`SAMPLE_ID.fusions.vcf.gz`** — same calls as VCF 4.3
-- **`brochure_SAMPLE_ID.html`** — per-sample clinical brochure
+Files written to `output/SAMPLE_ID/`:
 
-Tiers:
+| File | Description |
+|------|-------------|
+| `SAMPLE_ID.fusions.tsv` | All calls with tier, partner genes, evidence summary, QC flags |
+| `SAMPLE_ID.fusions.vcf.gz` | Calls in VCF 4.3 format |
+| `brochure_SAMPLE_ID.html` | Per-sample clinical brochure |
 
-- **T1** — high confidence. A known canonical lymphoma partner pair
-  with strong evidence, or a call backed by multiple independent signals.
-- **T2** — moderate confidence. Annotated lymphoma partner with weaker
-  evidence, or PASS in two or more callers.
-- **T3** — surfaced for review; usually noise.
+Calls are stratified into three confidence tiers:
+
+| Tier | Definition |
+|------|------------|
+| **T1** | High confidence. Canonical lymphoma partner pair with strong supporting evidence, or independent PASS from multiple callers. |
+| **T2** | Moderate confidence. Annotated lymphoma partner with reduced evidence, or PASS in two or more callers. |
+| **T3** | Low confidence. Surfaced for review. |
 
 ## Documentation
 
-- `docs/algorithm_vignette.md` — full algorithm walkthrough
-- `docs/benchmark_results.md` — head-to-head benchmark numbers + caveats
-- `docs/panel_validation.md` — running on targeted panel BAMs
-- `docs/quasar_vignette.docx` — printable summary
+| Document | Content |
+|----------|---------|
+| [`docs/algorithm_vignette.md`](docs/algorithm_vignette.md) | Full algorithm walkthrough |
+| [`docs/benchmark_results.md`](docs/benchmark_results.md) | Head-to-head benchmark and caveats |
+| [`docs/panel_validation.md`](docs/panel_validation.md) | Targeted panel BAM usage |
+| [`docs/quasar_vignette.docx`](docs/quasar_vignette.docx) | Printable algorithm summary |
 
-## Scope
+## Scope and limitations
 
-Alpha release. Validated on a 14-sample lymphoma cell-line WGS cohort.
-Held-out validation, broad-cohort generalisability, and patient-sample
-performance are unmeasured. **Not for clinical decision-making without
-site-specific validation.**
+Quasar v0.1.0 is an alpha release. Validation has been performed on a
+14-sample lymphoma cell-line WGS cohort. Held-out cohorts, broad
+cohort generalisability, and patient-sample performance have not been
+assessed. Quasar is not intended for clinical decision-making without
+site-specific validation.
+
+## Citation
+
+A manuscript is in preparation. In the interim, please cite this
+repository:
+
+```
+Trethewey C. Quasar: structural-variant calling for lymphoma sequencing.
+https://github.com/Trethewey/Quasar (2026).
+```
 
 ## Author
 
-Chris Trethewey — [christrethewey.dev](https://christrethewey.dev/) — [github.com/Trethewey](https://github.com/Trethewey)
+Chris Trethewey · [christrethewey.dev](https://christrethewey.dev/) · [github.com/Trethewey](https://github.com/Trethewey)
+
+## Licence
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
