@@ -1,4 +1,7 @@
-# Quasar
+<p align="center">
+  <img src="brand/png/quasar-banner-dark.png#gh-dark-mode-only" alt="Quasar" width="640">
+  <img src="brand/png/quasar-banner-light.png#gh-light-mode-only" alt="Quasar" width="640">
+</p>
 
 Lymphoma structural-variant and fusion caller. Reads aligned reads
 (BAM/CRAM) and writes VCF.
