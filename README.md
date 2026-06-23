@@ -1,6 +1,8 @@
 <div align="center">
-  <img src="brand/quasar-github-dark.svg#gh-dark-mode-only" alt="Quasar" width="100%">
-  <img src="brand/quasar-github-light.svg#gh-light-mode-only" alt="Quasar" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/quasar-github-dark.svg">
+    <img src="brand/quasar-github-light.svg" alt="Quasar" width="880">
+  </picture>
 </div>
 
 <br>
