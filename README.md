@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="brand/png/quasar-github-dark.png#gh-dark-mode-only" alt="Quasar" width="720">
-  <img src="brand/png/quasar-github-light.png#gh-light-mode-only" alt="Quasar" width="720">
+  <img src="brand/quasar-github-dark.svg#gh-dark-mode-only" alt="Quasar" width="720">
+  <img src="brand/quasar-github-light.svg#gh-light-mode-only" alt="Quasar" width="720">
 </p>
 
 <br>
