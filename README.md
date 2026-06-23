@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/quasar-github-dark.svg">
-    <img src="brand/quasar-github-light.svg" alt="Quasar" width="880">
-  </picture>
+  <img src="brand/quasar-logo-dark-stacked.svg" alt="Quasar" width="520">
 </p>
 
 <br>
