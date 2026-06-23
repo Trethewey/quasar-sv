@@ -1,11 +1,15 @@
 <p align="center">
-  <img src="brand/png/quasar-github-dark.png#gh-dark-mode-only" alt="Quasar" width="720">
-  <img src="brand/png/quasar-github-light.png#gh-light-mode-only" alt="Quasar" width="720">
+  <img src="brand/png/quasar-banner-dark.png#gh-dark-mode-only" alt="Quasar" width="720">
+  <img src="brand/png/quasar-banner-light.png#gh-light-mode-only" alt="Quasar" width="720">
 </p>
 
-[![Licence](https://img.shields.io/badge/licence-Apache_2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](#scope-and-limitations)
+<br>
+
+<p align="center">
+  <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache_2.0-blue.svg"></a>
+  <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
+  <a href="#scope-and-limitations"><img alt="Status" src="https://img.shields.io/badge/status-alpha-orange.svg"></a>
+</p>
 
 Quasar is a structural-variant caller for next-generation sequencing data,
 specialised for lymphoma diagnostics. It identifies clinically actionable
