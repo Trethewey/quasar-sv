@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quasar-sv"
+version = "0.1.0"
+description = "Ensemble structural-variant and fusion detection for lymphoma NGS"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Chris Trethewey", email = "chris@christrethewey.dev" }]
+maintainers = [{ name = "Chris Trethewey" }]
+keywords = [
+  "lymphoma",
+  "structural-variant",
+  "sv-caller",
+  "fusion-detection",
+  "ngs",
+  "clinical-genomics",
+  "wgs",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "plotly>=5.18",
+  "jinja2>=3.1",
+  "openpyxl>=3.1",
+]
+
+[project.urls]
+Homepage = "https://christrethewey.dev/"
+Repository = "https://github.com/Trethewey/Quasar"
+Issues = "https://github.com/Trethewey/Quasar/issues"
+
+[project.optional-dependencies]
+bam = ["pysam>=0.22"]
+dev = ["pytest>=7.4", "ruff>=0.4"]
+
+[project.scripts]
+quasar = "quasarsv.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+quasarsv = ["data/*.tsv", "data/*.json", "reports/templates/*.html"]

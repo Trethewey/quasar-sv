@@ -1,0 +1,31 @@
+partner_a	partner_b	cytoband	disease	source	notes
+IGH	MYC	t(8;14)(q24;q32)	Burkitt; DH-DLBCL	canonical	8q24 -> 14q32
+IGK	MYC	t(2;8)(p11;q24)	Burkitt variant	canonical	2p11 -> 8q24
+IGL	MYC	t(8;22)(q24;q11)	Burkitt variant	canonical	8q24 -> 22q11
+IGH	BCL2	t(14;18)(q32;q21)	Follicular; DH-DLBCL	canonical	MBR/mcr/icr breakpoints
+IGH	BCL6	t(3;14)(q27;q32)	DLBCL	canonical	3q27 MBCR
+IGH	CCND1	t(11;14)(q13;q32)	Mantle cell	canonical	MTC cluster
+IGH	BCL10	t(1;14)(p22;q32)	MALT	canonical	1p22
+IGH	MALT1	t(14;18)(q32;q21)	MALT	canonical	18q21 MALT1 (distinct from BCL2 t(14;18))
+API2	MALT1	t(11;18)(q21;q21)	MALT	canonical	BIRC3-MALT1 fusion
+IGH	IRF4	t(6;14)(p25;q32)	Myeloma; rare DLBCL	canonical	IRF4 (MUM1)
+IGH	CCND3	t(6;14)(p21;q32)	Mantle cell variant	canonical	CCND3
+IGH	FCGR2B	t(1;14)(q21;q32)	DLBCL	rare	1q21
+DUSP22	IRF4	t(6;6)(p25;p25)	ALK-neg ALCL; cutaneous TCL	canonical	intra-6p25.3
+NPM1	ALK	t(2;5)(p23;q35)	ALCL	canonical	5q35 NPM1 ‒ 2p23 ALK
+TPM3	ALK	t(1;2)(q21;p23)	ALCL	canonical	1q21 TPM3
+TPM4	ALK	t(2;19)(p23;p13)	ALCL	rare	19p13 TPM4
+ATIC	ALK	inv(2)(p23;q35)	ALCL	canonical	intra-2 inv
+TFG	ALK	t(2;3)(p23;q21)	ALCL	rare	3q21 TFG
+MYB	NFIB	t(6;9)(q23;p22)	Adenoid cystic / T-ALL	canonical	6q23 ‒ 9p22
+BCL6	IGK	t(2;3)(p11;q27)	DLBCL	canonical	BCL6 promiscuous
+BCL6	IGL	t(3;22)(q27;q11)	DLBCL	canonical	BCL6 promiscuous
+BCL6	TBL1XR1	t(3;3)(q27;q26)	DLBCL	known	intra-3 BCL6 swap
+BCL6	LCP1	t(3;13)(q27;q14)	DLBCL	known	BCL6 promiscuous partner
+NFKBIE	BCL6	t(3;6)(q27;p21)	DLBCL	rare	rearrangement
+PAX5	IGH	t(9;14)(p13;q32)	LPL; some DLBCL	canonical	9p13
+PAX5	ETV6	t(9;12)(p13;p13)	B-ALL	canonical	ETV6
+EZH2	IGH	t(7;14)(q36;q32)	rare	rare
+BCL11A	IGH	t(2;14)(p16;q32)	rare DLBCL	rare
+KMT2A	AFF1	t(4;11)(q21;q23)	B-ALL	canonical	MLL fusion
+BCL3	IGH	t(14;19)(q32;q13)	CLL	canonical	19q13 BCL3

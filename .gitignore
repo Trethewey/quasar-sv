@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+develop-eggs/
+.installed.cfg
+pip-wheel-metadata/
+
+# Virtual envs
+venv/
+env/
+.venv/
+.env
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+
+# Linters / type checkers
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Bioinformatics — never accidentally commit large data
+*.bam
+*.bai
+*.cram
+*.crai
+*.vcf.gz
+*.vcf.gz.tbi
+*.fasta
+*.fasta.fai
+*.fasta.gz
+*.fa
+*.fa.fai
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Quasar outputs (regeneratable from source)
+output/
+cram_local/
+cram_source/
+ref/
+*.log
+*.fusions.tsv
+*.fusions.json
+brochure_*.html
+cohort_dashboard.html
+validation_report.html
+
+# Local secrets / config overrides
+.env.local
+local_config.sh

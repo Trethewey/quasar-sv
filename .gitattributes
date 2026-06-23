@@ -1,0 +1,16 @@
+# Normalise line endings.
+* text=auto
+
+# Shell scripts must stay LF for Linux/macOS.
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Python keeps LF too (universal-newline mode reads CRLF fine but LF is canonical).
+*.py    text eol=lf
+
+# Binary assets — don't touch.
+*.png   binary
+*.ico   binary
+*.docx  binary
+*.tsv   text
+*.svg   text eol=lf

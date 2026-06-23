@@ -1,0 +1,2 @@
+chrom	start	end	notes
+2	32915800	32916800	GRCh38 BIRC6 region — recurrent multi-partner mapping artefact observed in both panel and WGS lymphoma data on 2026-06-18; flags every breakpoint cluster mating here regardless of caller

@@ -1,0 +1,26 @@
+fusionforge (working name)
+Copyright 2026 Chris Trethewey and contributors
+
+Author: Chris Trethewey
+  https://christrethewey.dev/
+  https://github.com/Trethewey
+
+This product includes software developed by Chris Trethewey
+and project contributors.
+
+This project is licensed under the Apache License, Version 2.0.
+See LICENSE for the full license text.
+
+Third-party tools driven by the benchmark harness retain their own licenses:
+  * Manta    — GPL-3.0 (Illumina)
+  * GRIDSS   — GPL-3.0 (Walter and Eliza Hall Institute)
+  * Delly    — BSD-3-Clause (EMBL)
+  * SvABA    — GPL-3.0 (Broad Institute)
+  * TIDDIT   — GPL-3.0 (SciLifeLab)
+  * FACTERA  — Stanford — see FACTERA/license.txt in the archive
+  * samtools / bcftools / bwa — MIT (Wellcome Sanger Institute)
+  * htslib   — MIT (Wellcome Sanger Institute)
+
+The Apache-2.0 license on fusionforge applies only to fusionforge's own source
+code (src/<package>/, tests/, scripts/, docs/). Outputs produced by running
+fusionforge over data the user supplies belong to the user.
