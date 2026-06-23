@@ -1,7 +1,7 @@
-<p align="center">
-  <img src="brand/quasar-github-dark.svg#gh-dark-mode-only" alt="Quasar" width="720">
-  <img src="brand/quasar-github-light.svg#gh-light-mode-only" alt="Quasar" width="720">
-</p>
+<div align="center">
+  <img src="brand/quasar-github-dark.svg#gh-dark-mode-only" alt="Quasar" width="100%">
+  <img src="brand/quasar-github-light.svg#gh-light-mode-only" alt="Quasar" width="100%">
+</div>
 
 <br>
 
