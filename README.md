@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/branding/quasar_logo.png" alt="Quasar" width="640">
-</p>
+# Quasar
 
 **Lymphoma structural-variant and fusion detection — panel and WGS.**
 
