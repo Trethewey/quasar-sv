@@ -177,8 +177,24 @@ def _load_replicate_pairs(path: str | None) -> list[tuple[str, str]]:
     return pairs
 
 
+def _require_files(*items: tuple[str, str]) -> int:
+    """Return non-zero and print a clean message if any (path, label) is missing."""
+    for path, label in items:
+        if not path or not Path(path).exists():
+            print(f"[error] {label} not found: {path}", file=sys.stderr)
+            return 2
+    return 0
+
+
 def cmd_scan_cram(args) -> int:
     """Read-level scan of a BAM/CRAM -> merged + annotated TSV + reports."""
+    rc = _require_files((args.bam, "BAM/CRAM"), (args.reference, "reference FASTA"))
+    if rc:
+        return rc
+    if not Path(str(args.reference) + ".fai").exists():
+        print(f"[error] reference FASTA index missing: {args.reference}.fai "
+              f"(run: samtools faidx {args.reference})", file=sys.stderr)
+        return 2
     from .scanners import ScannerConfig, SAScannerConfig, scan_cram, scan_artefacts_sa
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -339,8 +355,10 @@ def cmd_run(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="quasarsv",
-                                     description="Ensemble fusion detection (lymphoma NGS)")
+    parser = argparse.ArgumentParser(
+        prog="quasar",
+        description="Quasar — lymphoma-specific structural-variant / fusion caller "
+                    "(BAM/CRAM in; VCF + tiered TSV + HTML report out)")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     def add_caller_args(p: argparse.ArgumentParser):

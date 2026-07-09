@@ -131,3 +131,33 @@ def demote_nonclinical_t1(
                 c.qc_flags.append(flag)
             demoted += 1
     return demoted
+
+
+def _has_two_genes(c: FusionCall) -> bool:
+    return bool(c.gene_a) and bool(c.gene_b) and c.gene_a != c.gene_b
+
+
+def gate_t1_actionable(calls: list[FusionCall]) -> int:
+    """Cap T1 (clinically actionable) to a *resolved* gene-pair claim.
+
+    A T1 call must be either a two-gene KNOWN canonical partner pair, or
+    supported by ≥2 independent callers. A single-caller call whose partner
+    side is unannotated (a lone driver breakpoint such as BCL6→intergenic, or a
+    lone IG breakpoint) is review-worthy but not actionable, so it is capped to
+    T2. This preserves recall (T2 still counts) while keeping the T1 list to
+    breakpoints a reporting scientist can act on.
+
+    Returns the number of calls capped.
+    """
+    capped = 0
+    for c in calls:
+        if c.tier != "T1":
+            continue
+        canonical = _has_two_genes(c) and c.known_partner
+        multicaller = c.n_callers >= 2
+        if not (canonical or multicaller):
+            c.tier = "T2"
+            if "t1_capped_unresolved" not in c.qc_flags:
+                c.qc_flags.append("t1_capped_unresolved")
+            capped += 1
+    return capped

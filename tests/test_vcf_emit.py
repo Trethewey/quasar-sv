@@ -107,3 +107,70 @@ def test_vcf_qc_flags_preserved():
     call = _fc(qc_flags=["inferred_via_artefact_rescue", "ig_partner_ambiguous"])
     text = write_vcf_to_string([call])
     assert "FF_QC_FLAGS=inferred_via_artefact_rescue|ig_partner_ambiguous" in text
+
+
+def _body(text):
+    return [l.split("\t") for l in text.splitlines() if l and not l.startswith("#")]
+
+
+def test_vcf_bnd_mate_reciprocal_orientation():
+    # VCF 4.3 §5.4: t[p[  <->  ]p]t
+    text = write_vcf_to_string([_fc(strand_a="+", strand_b="+",
+                                    chrom_a="14", pos_a=106_000_000,
+                                    chrom_b="18", pos_b=63_200_000)])
+    alt = {r[0]: r[4] for r in _body(text)}
+    assert alt["chr14"] == "N[chr18:63200000["
+    assert alt["chr18"] == "]chr14:106000000]N"
+
+
+def test_vcf_all_four_strand_combos_round_trip():
+    from quasarsv.parsers.base import parse_bnd_alt
+    for sa, sb in [("+", "+"), ("+", "-"), ("-", "+"), ("-", "-")]:
+        text = write_vcf_to_string([_fc(strand_a=sa, strand_b=sb,
+                                        chrom_a="14", pos_a=106_000_000,
+                                        chrom_b="18", pos_b=63_200_000)])
+        by = {r[0]: r for r in _body(text)}
+        prim = parse_bnd_alt(by["chr14"][4])
+        assert prim[:2] == ("chr18", 63_200_000) and (prim[2], prim[3]) == (sa, sb)
+        mate = parse_bnd_alt(by["chr18"][4])
+        assert mate[:2] == ("chr14", 106_000_000)   # mate points back at the primary
+
+
+def test_vcf_mateid_cross_references():
+    recs = _body(write_vcf_to_string([_fc()]))
+    ids = {r[2] for r in recs}
+    assert len(ids) == 2
+    for r in recs:
+        info = dict(kv.split("=", 1) for kv in r[7].split(";") if "=" in kv)
+        assert info["MATEID"] in ids and info["MATEID"] != r[2]
+
+
+def test_vcf_records_coordinate_sorted():
+    c1 = _fc(chrom_a="18", pos_a=63_000_000, chrom_b="2", pos_b=30_000_000)
+    c2 = _fc(chrom_a="2", pos_a=10_000_000, chrom_b="8", pos_b=127_000_000)
+    recs = _body(write_vcf_to_string([c1, c2]))
+
+    def ck(c):
+        s = c[3:]
+        return int(s) if s.isdigit() else 99
+    keys = [(ck(r[0]), int(r[1])) for r in recs]
+    assert keys == sorted(keys)
+
+
+def test_vcf_info_values_percent_encoded():
+    text = write_vcf_to_string([_fc(kp_src="canonical:Burkitt; DH-DLBCL")])
+    info = _body(text)[0][7]
+    assert " " not in info                       # no raw whitespace in INFO
+    assert "Burkitt%3B%20DH-DLBCL" in info        # ';' and ' ' encoded
+
+
+def test_vcf_svlen_negative_for_del():
+    call = _fc(chrom_a="3", chrom_b="3", pos_a=187_500_000, pos_b=187_700_000, sv_type="DEL")
+    info = _body(write_vcf_to_string([call]))[0][7]
+    assert "SVLEN=-200000" in info
+
+
+def test_vcf_has_contig_headers():
+    text = write_vcf_to_string([_fc()])
+    assert "##contig=<ID=chr14>" in text
+    assert "##contig=<ID=chr18>" in text

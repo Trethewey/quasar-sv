@@ -41,10 +41,16 @@ corroborated by multiple independent callers.
 ## Installation
 
 ```bash
-pip install quasar-sv
+pip install "git+https://github.com/Trethewey/Quasar.git#egg=quasar-sv[bam]"
 ```
 
-CLI entry point: `quasar`. Python package: `quasarsv`.
+CLI entry point: `quasar`. Python package: `quasarsv`. (A PyPI release under the
+name `quasar-sv` is planned; until then install from the repository as above.)
+
+**Requirements.** Quasar reads BAM/CRAM via [pysam](https://github.com/pysam-developers/pysam),
+which ships wheels for **Linux and macOS only** — on Windows, run under WSL.
+The reference FASTA must be indexed (`samtools faidx GRCh38.fasta`, producing
+`GRCh38.fasta.fai`) so the scanner can fetch loci by region.
 
 ## Quick start
 

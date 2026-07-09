@@ -12,5 +12,6 @@
 *.png   binary
 *.ico   binary
 *.docx  binary
-*.tsv   text
+*.tsv   text eol=lf
+*.md    text eol=lf
 *.svg   text eol=lf

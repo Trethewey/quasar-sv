@@ -142,6 +142,13 @@ def annotate_calls(
     idx = _index_loci(loci)
 
     for c in calls:
+        # Reset derived annotation so re-annotation is idempotent (a stale
+        # known_partner=True carried in from an earlier pass must not survive
+        # when the current locus tables no longer support it).
+        c.driver_locus = ""
+        c.known_partner = False
+        c.known_partner_source = ""
+
         a_gene, a_region, a_driver = _hit_in_locus(idx, c.chrom_a, c.pos_a)
         b_gene, b_region, b_driver = _hit_in_locus(idx, c.chrom_b, c.pos_b)
         c.gene_a, c.region_a = a_gene, a_region

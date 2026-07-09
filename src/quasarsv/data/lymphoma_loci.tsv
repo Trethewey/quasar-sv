@@ -1,6 +1,6 @@
 gene	chrom	start	end	strand	role	notes
 MYC	8	127735434	127741434	+	driver	8q24.21 oncogene; Burkitt / DLBCL DH
-BCL2	18	63123346	63320128	-	driver	18q21.33 anti-apoptotic; FL / DLBCL DH
+BCL2	18	63090000	63320128	-	driver	18q21.33 anti-apoptotic; FL / DLBCL DH; 5' window extended to cover t(14;18) MBR/mcr breakpoint cluster (~63.09-63.12 Mb, telomeric of the minus-strand 3'UTR)
 BCL6	3	187420000	187800000	-	driver	3q27.3 TF; DLBCL — window covers MBR (5' upstream) + gene body + ABR
 BCL6_MBR	3	187440000	187470000	-	rearr_hotspot	BCL6 Major Breakpoint Region (canonical t(3;14) cluster)
 BCL6_ABR	3	187700000	187800000	-	rearr_hotspot	BCL6 Alternative Breakpoint Region

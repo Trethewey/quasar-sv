@@ -2,11 +2,18 @@
 from __future__ import annotations
 
 import csv
+import re
 from collections import Counter
 from importlib.resources import files as pkg_files
 from pathlib import Path
 
 from .model import FusionCall
+
+# Non-primary GRCh38 contigs: decoys, unplaced/unlocalised scaffolds, ALT
+# haplotypes, HLA, EBV. A breakpoint whose partner lands here is essentially
+# always a mapping artefact, never a real clinical translocation partner.
+_DECOY_CONTIG_RE = re.compile(
+    r"(_decoy|_random|_alt|^chrUn|^Un_|KI270|GL000|JTFH|KN707|HLA-|EBV)", re.I)
 
 
 def _load_artefact_loci() -> list[tuple[str, int, int, str]]:
@@ -125,6 +132,77 @@ def cohort_recurrence(calls: list[FusionCall], window: int = 1000) -> Counter:
     return Counter({k: len(s) for k, s in seen.items() if len(s) > 1})
 
 
+def _is_decoy_partner(c: FusionCall) -> bool:
+    return bool(_DECOY_CONTIG_RE.search(c.chrom_a)) or bool(_DECOY_CONTIG_RE.search(c.chrom_b))
+
+
+def flag_decoy_partner(calls: list[FusionCall]) -> int:
+    """Downgrade to T3 any call with a breakpoint on a decoy / unplaced / ALT /
+    HLA / EBV contig. These are mapping artefacts, never real clinical partners.
+
+    A genuine two-gene canonical known-partner pair is exempt (defensive — a
+    canonical pair should never have a decoy endpoint, but do not silently bury
+    one if annotation somehow produced it).
+
+    Returns the number of calls downgraded.
+    """
+    n = 0
+    for c in calls:
+        if c.tier == "T3":
+            continue
+        if c.known_partner and c.gene_a and c.gene_b:
+            continue
+        if _is_decoy_partner(c):
+            c.tier = "T3"
+            if "decoy_partner" not in c.qc_flags:
+                c.qc_flags.append("decoy_partner")
+            n += 1
+    return n
+
+
+# Event classes that carry no clinical signal on their own — physiological
+# recombination and intra-locus duplicates. Downgrading these out of the review
+# tier keeps the T1/T2 list dominated by candidate somatic events.
+_PHYSIOLOGICAL_CLASSES = {"IG_intra", "IG_IG", "driver_intra"}
+# Classes we must NEVER auto-downgrade on an artefact flag alone — a novel
+# driver rearrangement is exactly what a lymphoma-specific caller should surface
+# (see audit: demoting these on recurrent_artefact buries real novel drivers).
+_CLINICAL_CLASSES = {"IG_driver_canonical", "IG_driver_novel", "driver_driver", "driver_intergenic"}
+
+
+def demote_physiological_noise(calls: list[FusionCall]) -> int:
+    """Downgrade physiological and recurrent-artefact NON-clinical calls out of
+    the T1/T2 review tier to T3.
+
+    Removed from the review tier:
+      * physiological classes (IG_intra / IG_IG / driver_intra), and
+      * ``recurrent_artefact``-flagged calls whose class is IG_intergenic or
+        intergenic (the IG-locus-to-everywhere mapping noise).
+
+    Preserved (never downgraded here):
+      * known canonical partner pairs, and
+      * clinically relevant classes (canonical / novel driver / driver-driver /
+        driver-intergenic) — so novel drivers are not buried by an artefact flag.
+
+    Returns the number of calls downgraded.
+    """
+    n = 0
+    for c in calls:
+        if c.tier not in ("T1", "T2"):
+            continue
+        if c.known_partner or c.event_class in _CLINICAL_CLASSES:
+            continue
+        physiological = c.event_class in _PHYSIOLOGICAL_CLASSES
+        recurrent_noise = ("recurrent_artefact" in c.qc_flags
+                           and c.event_class in ("IG_intergenic", "intergenic"))
+        if physiological or recurrent_noise:
+            c.tier = "T3"
+            if "demoted_review_noise" not in c.qc_flags:
+                c.qc_flags.append("demoted_review_noise")
+            n += 1
+    return n
+
+
 def apply_default_qc(
     calls: list[FusionCall],
     sample_lineage: dict[str, str] | None = None,
@@ -166,6 +244,14 @@ def apply_default_qc(
     # flagged ``recurrent_artefact``. Multi-caller PASS and known-canonical
     # pairs are preserved.
     demote_nonclinical_t1(calls)
+    # Review-tier hygiene: remove mapping-artefact and physiological noise from
+    # T1/T2 so the review list stays dominated by candidate somatic events.
+    flag_decoy_partner(calls)
+    demote_physiological_noise(calls)
+    # Actionability gate: T1 is reserved for resolved canonical gene pairs or
+    # multi-caller support; lone-gene single-caller breakpoints cap at T2.
+    from .classify import gate_t1_actionable
+    gate_t1_actionable(calls)
     # NOTE: empirical-LLR promotion (src/quasarsv/llr_score.py) is shipped
     # but NOT wired in by default — testing it on the cohort dropped F1 from
     # 0.84 to 0.32 because the heuristic Phred-per-read calibration is too
