@@ -23,8 +23,6 @@ bash scripts/rename_package.sh <new_name>
 
 * `archive/` — historic snapshots; the old name is a feature there
 * `output/` — fully regeneratable from source, no need to touch
-* `~/.claude/projects/.../memory/` — auto-memory files; update by hand if
-  the new name is permanent (or let them go stale and be replaced naturally)
 
 ## Constraints on the new name
 

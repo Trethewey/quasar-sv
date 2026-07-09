@@ -10,9 +10,6 @@
 # What it does NOT touch:
 #   * Files inside `archive/`   (historic; deliberate snapshot)
 #   * Files inside `output/`    (regeneratable artefacts)
-#   * Memory entries (~/.claude/projects/.../memory/) — those describe
-#     facts about *this* project and you should update them by hand if the
-#     name change is permanent
 #
 # Usage:   bash scripts/rename_package.sh <new_name>
 # Example: bash scripts/rename_package.sh ivyforge
@@ -84,7 +81,7 @@ echo "[2/3] Rewriting string references in code/docs/scripts/tests/configs"
 TARGETS=$(grep -rl --include='*.py' --include='*.sh' --include='*.md' \
   --include='*.toml' --include='*.tsv' --include='*.txt' --include='LICENSE' \
   --exclude-dir=archive --exclude-dir=output --exclude-dir='__pycache__' \
-  --exclude-dir='.pytest_cache' --exclude-dir='.claude' \
+  --exclude-dir='.pytest_cache' \
   "$OLD_NAME" "$PROJECT_ROOT" 2>/dev/null || true)
 if [[ -n "$TARGETS" ]]; then
   echo "$TARGETS" | while read -r f; do
