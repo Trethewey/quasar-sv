@@ -86,7 +86,6 @@ Calls are stratified into three confidence tiers:
 |----------|---------|
 | [`docs/algorithm_vignette.md`](docs/algorithm_vignette.md) | Full algorithm walkthrough |
 | [`docs/benchmark_results.md`](docs/benchmark_results.md) | Head-to-head benchmark and caveats |
-| [`docs/panel_validation.md`](docs/panel_validation.md) | Targeted panel BAM usage |
 | [`docs/quasar_vignette.docx`](docs/quasar_vignette.docx) | Printable algorithm summary |
 
 ## Scope and limitations

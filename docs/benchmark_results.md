@@ -108,25 +108,19 @@ Maintains F1 = 0.84 with only the pysam scanner + caller VCFs; Manta drops to 0.
 
 ## Reproducing this benchmark
 
+Each external caller (Manta, Delly, SvABA, GRIDSS, TIDDIT) was run on every
+cohort CRAM, and its VCF scored against the packaged truth set
+(`src/quasarsv/data/cohort_truth.tsv`) using the same order-insensitive
+gene-pair matching applied to Quasar. Quasar's own calls are scored with:
+
 ```bash
-# 1. Prerequisites: cohort CRAMs accessible on a fast filesystem.
-#    Set FUSIONFORGE_CRAM_ROOT or pass CRAM_DIR=<dir> to the harness.
-
-# 2. Bioconda envs installed (manta, delly, svaba, gridss, tiddit, base-bio):
-#    Set FUSIONFORGE_CONDA_ROOT to point at your conda/mamba root.
-
-# 3. Run all callers on all samples:
-TOOLS=manta,delly,tiddit bash scripts/benchmark_multitool.sh
-
-# 4. Score all tools against the truth set:
-PYTHONPATH=src python3 scripts/score_external_callers.py \
-    --tools manta,delly,tiddit
+quasar benchmark output/<sample>/*.fusions.tsv --relax-canonical-ig-partner
 ```
 
-Outputs:
-* `output/benchmark/<tool>/<sample>/` — per-tool VCFs
-* `output/benchmark/scores_long.tsv` — per-sample × per-tool detail
-* `output/benchmark/scores_comparative.tsv` — the headline aggregate table
+The truth set and scoring logic ship with the package, so any caller's output
+can be evaluated the same way. The per-caller driver scripts used to generate
+the comparison table above are development tooling and are not part of the
+release.
 
 ---
 
