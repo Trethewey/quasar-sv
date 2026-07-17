@@ -41,15 +41,17 @@ corroborated by multiple independent callers.
 
 ## Installation
 
-From a clone (the repository is currently private, so this is the reliable route):
+**This repository is private.** Installing therefore requires access to it, over
+SSH (below) or over HTTPS with a personal access token. There is no anonymous
+install route yet.
 
 ```bash
-git clone https://github.com/Trethewey/Quasar.git
+git clone git@github.com:Trethewey/Quasar.git
 cd Quasar
 pip install ".[bam]"
 ```
 
-Or directly, if you have repository access:
+Or in one step, without keeping the clone:
 
 ```bash
 pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/Quasar.git"
@@ -57,8 +59,9 @@ pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/Quasar.git"
 
 The `[bam]` extra pulls in pysam, without which the BAM/CRAM scanner cannot run.
 
-CLI entry point: `quasar`. Python package: `quasarsv`. (A PyPI release under the
-name `quasar-sv` is planned; until then install from the repository as above.)
+CLI entry point: `quasar`. Python package: `quasarsv`. A PyPI release under the
+name `quasar-sv` is planned; once published, `pip install "quasar-sv[bam]"` will
+work without repository access.
 
 **Requirements.** Quasar reads BAM/CRAM via [pysam](https://github.com/pysam-developers/pysam),
 which ships wheels for **Linux and macOS only** — on Windows, run under WSL.
