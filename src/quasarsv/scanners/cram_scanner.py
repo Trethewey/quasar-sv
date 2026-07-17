@@ -2,7 +2,7 @@
 across a defined set of target loci (default = built-in lymphoma driver loci).
 
 Emits BreakpointCall records compatible with the merger. The "caller" name is
-``forge_scan`` so it slots alongside Manta / GRIDSS / Delly / SvABA / FACTERA
+``quasar`` so it slots alongside Manta / GRIDSS / Delly / SvABA / FACTERA
 in the ensemble.
 
 Design
@@ -245,7 +245,7 @@ def scan_cram(
     cfg: ScannerConfig | None = None,
     library_stats_path: str | None = None,
 ) -> list[BreakpointCall]:
-    """Scan a BAM/CRAM and return BreakpointCall list (caller='forge_scan').
+    """Scan a BAM/CRAM and return BreakpointCall list (caller='quasar').
 
     If ``library_stats_path`` is provided, cached library stats are loaded
     from there (or computed + saved if absent) and used to set the adaptive
@@ -402,7 +402,7 @@ def scan_cram(
             sr_int = max(0, int(round(cl.split_reads)))
             pe_int = max(0, int(round(cl.discordant_pairs)))
             ev = Evidence(
-                caller="forge_scan",
+                caller="quasar",
                 split_reads=sr_int,
                 discordant_pairs=pe_int,
                 assembly_contigs=0,
@@ -419,7 +419,7 @@ def scan_cram(
                 chrom_b=cb, pos_b=pb, strand_b=sb_strand,
                 sv_type="BND",
                 evidence=ev,
-                record_id=f"forge_scan_{g.gene}_{ca}_{pa}_{cb}_{pb}",
+                record_id=f"quasar_{g.gene}_{ca}_{pa}_{cb}_{pb}",
             ))
     sam.close()
     return calls

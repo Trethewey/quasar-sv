@@ -248,7 +248,7 @@ def assign_tier(cand: FusionCandidate, t: TierThresholds | None = None) -> tuple
             and "singleton_imprecise" not in flags):
         return "T1", flags
 
-    # Single-caller exceptional path: when one caller (typically forge_scan)
+    # Single-caller exceptional path: when one caller (typically quasar)
     # reports overwhelming SR+PE support with both evidence types, escalate.
     very_strong_single = (
         n_callers == 1 and any_pass and any_precise

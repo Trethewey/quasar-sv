@@ -68,7 +68,7 @@ def scan_artefacts_sa(
 ) -> list[BreakpointCall]:
     """Scan the built-in artefact loci and cluster the SA-tag landing sites
     of every read found there. Each strong cluster is emitted as a candidate
-    `artefact ↔ real_partner` BreakpointCall, caller=`forge_scan_sa`."""
+    `artefact ↔ real_partner` BreakpointCall, caller=`quasar_sa`."""
     cfg = cfg or SAScannerConfig()
     art = _load_artefact_loci()
     if not art:
@@ -149,7 +149,7 @@ def scan_artefacts_sa(
                 chrom_b, d["art_positions"][len(d["art_positions"]) // 2], d["strand_b"],
             )
             ev = Evidence(
-                caller="forge_scan_sa",
+                caller="quasar_sa",
                 split_reads=d["sr"],
                 discordant_pairs=0,
                 assembly_contigs=0,
@@ -164,7 +164,7 @@ def scan_artefacts_sa(
                 sample=sample, chrom_a=ca, pos_a=pa, strand_a=sa_strand_n,
                 chrom_b=cb, pos_b=pb, strand_b=sb_strand_n,
                 sv_type="BND", evidence=ev,
-                record_id=f"forge_scan_sa_{cb}_{pb}_{ca}_{pa}",
+                record_id=f"quasar_sa_{cb}_{pb}_{ca}_{pa}",
             ))
     sam.close()
     return out

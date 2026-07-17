@@ -17,21 +17,21 @@ Source-file references are the authoritative implementation.
    1  │  Per-locus pysam scan                                 │
       │   • driver + IG/TR + artefact loci (~40 windows)      │
       │   • SR (split-read via SA tag) + PE (discordant pair) │
-      │   • emits BreakpointCall, caller="forge_scan"         │
+      │   • emits BreakpointCall, caller="quasar"         │
       └───────────────────────────────────────────────────────┘
                               │
                               ▼
       ┌───────────────────────────────────────────────────────┐
    2  │  SA-tag scan of artefact loci                         │
       │   • clusters SA-target positions at chr2:32916        │
-      │   • emits BreakpointCall, caller="forge_scan_sa"      │
+      │   • emits BreakpointCall, caller="quasar_sa"      │
       └───────────────────────────────────────────────────────┘
                               │
                               ▼
       ┌───────────────────────────────────────────────────────┐
    3  │  Chromosome-level SA inference (opt-in)               │
       │   • aggregates SA-target chromosomes at the artefact  │
-      │   • caller="forge_scan_chrom_sa"                      │
+      │   • caller="quasar_chrom_sa"                      │
       └───────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -128,7 +128,7 @@ For each read passing `MAPQ ≥ 20`, not duplicate / not secondary:
 
 Reads are clustered into per-(`mate_chrom`, `mate_pos // 500 bp`,
 `strand_a`, `strand_b`) buckets. Each cluster gets a `BreakpointCall`
-record with caller `forge_scan` and the cluster's representative position
+record with caller `quasar` and the cluster's representative position
 (median of `pos_a_examples`), provided it meets
 `min_split_reads ≥ 2 OR min_discordant_pairs ≥ 4`.
 
@@ -150,7 +150,7 @@ SA-tag points to the read's true other end. We:
 2. For each read with an SA tag landing on a different chromosome, cluster
    by `(SA_chrom, SA_pos // 500, strand_a, strand_b)`.
 3. Emit `BreakpointCall` records keyed on the TRUE partner (chrom_a)
-   versus the artefact (chrom_b), caller `forge_scan_sa`.
+   versus the artefact (chrom_b), caller `quasar_sa`.
 
 This is the "reverse-direction" scanner — it looks at the noise hotspot
 to recover the underlying real translocations.
@@ -209,7 +209,7 @@ Provisional tier (rewritten in step 8/11):
           OR `(known canonical partner with SR + PE ≥ 5)`
 * **T3** = everything else
 
-The single-caller `forge_scan` path can reach T1 only via the SR ≥ 10 +
+The single-caller `quasar` path can reach T1 only via the SR ≥ 10 +
 PE ≥ 10 rule or via the canonical-partner promotion in step 9. By design.
 
 ## 6 — Annotation
@@ -317,7 +317,7 @@ clinical KPI counts in the brochure / cohort dashboard.
 ## 11 — Non-clinical T1 demotion
 ### Source: `src/quasarsv/classify.py::demote_nonclinical_t1`
 
-Single-caller `forge_scan` can hit T1 via the SR≥10 + PE≥10 path on
+Single-caller `quasar` can hit T1 via the SR≥10 + PE≥10 path on
 classes that aren't clinically actionable — V(D)J recombination at IG
 loci (`IG_intra`), inter-IG noise (`IG_IG`), intra-driver aSHM
 duplications (`driver_intra`), and `recurrent_artefact`-flagged windows.

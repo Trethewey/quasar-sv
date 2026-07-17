@@ -104,7 +104,7 @@ def demote_nonclinical_t1(
     """Demote T1 calls that are physiological (V(D)J / class-switch),
     intra-gene (aSHM short-range duplicates), or flagged ``recurrent_artefact``.
 
-    Single-caller forge_scan T1s reach this stage via the
+    Single-caller quasar T1s reach this stage via the
     ``single_caller_very_strong`` rule; those that fall into one of these
     non-clinical classes pollute the T1 list and degrade precision against
     a canonical-translocation truth set without any clinical benefit.

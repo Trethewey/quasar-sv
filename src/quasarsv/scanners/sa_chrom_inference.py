@@ -154,7 +154,7 @@ def _removed_scan_artefacts_chrom_inference(
                 cb, pos_b, "+",
             )
             ev = Evidence(
-                caller="forge_scan_chrom_sa",
+                caller="quasar_chrom_sa",
                 split_reads=n_sa,
                 discordant_pairs=0,
                 assembly_contigs=0,
@@ -170,7 +170,7 @@ def _removed_scan_artefacts_chrom_inference(
                 chrom_a=chrom_a, pos_a=pos_a, strand_a=sa_strand,
                 chrom_b=chrom_b_n, pos_b=pos_b_n, strand_b=sb_strand,
                 sv_type="BND", evidence=ev,
-                record_id=f"forge_scan_chrom_sa_{chrom_a}_{chrom_b_n}_{gene or 'NA'}",
+                record_id=f"quasar_chrom_sa_{chrom_a}_{chrom_b_n}_{gene or 'NA'}",
             ))
     sam.close()
     return calls

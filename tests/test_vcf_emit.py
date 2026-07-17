@@ -25,7 +25,7 @@ def _fc(sample="S1", chrom_a="14", pos_a=106_000_000, strand_a="+",
         gene_a=gene_a, gene_b=gene_b,
         tier=tier, known_partner=known_partner, known_partner_source=kp_src,
         split_reads=split_reads, discordant_pairs=discordant_pairs,
-        callers_supporting=["manta", "forge_scan"], n_callers=2,
+        callers_supporting=["manta", "quasar"], n_callers=2,
         n_evidence_types=2, precise=True, any_pass=True,
         qc_flags=qc_flags or [],
     )

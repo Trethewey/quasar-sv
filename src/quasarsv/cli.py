@@ -216,8 +216,7 @@ def cmd_scan_cram(args) -> int:
     # the junk read's origin locus, not a translocation partner.
     sa_bps = scan_artefacts_sa(args.bam, args.reference, args.sample,
                                cfg=SAScannerConfig(min_split_reads=max(5, args.min_split_reads)))
-    per_caller = {"forge_scan": bps, "forge_scan_sa": sa_bps}
-    chrom_sa_bps: list = []
+    per_caller = {"quasar": bps, "quasar_sa": sa_bps}
     calls = merge_caller_calls(per_caller, cfg=MergeConfig(pos_tolerance=250))
     annotate_calls(calls)
     sample_lineage, lineage_default = _build_sample_lineage(args)
@@ -228,10 +227,9 @@ def cmd_scan_cram(args) -> int:
 
     summary = {
         "sample": args.sample,
-        "n_breakpoint_calls": len(bps) + len(sa_bps) + len(chrom_sa_bps),
-        "n_forge_scan": len(bps),
-        "n_forge_scan_sa": len(sa_bps),
-        "n_forge_scan_chrom_sa": len(chrom_sa_bps),
+        "n_breakpoint_calls": len(bps) + len(sa_bps),
+        "n_quasar": len(bps),
+        "n_quasar_sa": len(sa_bps),
         "n_candidates": len(calls),
         "tier": {t: sum(1 for c in calls if c.tier == t) for t in ("T1", "T2", "T3")},
         "known_partner_count": sum(1 for c in calls if c.known_partner),

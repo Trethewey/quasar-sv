@@ -41,7 +41,7 @@ def _fc(sample, ca, pa, cb, pb, gene_a="", gene_b="", tier="T2",
         chrom_b=cb, pos_b=pb, strand_b="+",
         sv_type="BND", gene_a=gene_a, gene_b=gene_b,
         tier=tier, split_reads=sr, discordant_pairs=pe,
-        callers_supporting=callers or ["forge_scan"], n_callers=1,
+        callers_supporting=callers or ["quasar"], n_callers=1,
     )
 
 
