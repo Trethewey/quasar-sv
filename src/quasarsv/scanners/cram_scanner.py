@@ -132,6 +132,19 @@ def is_noise_clip(seq: str) -> bool:
     manufacturing split-read "evidence" that links every locus to that sink at a
     uniform rate — measured at ~220 SR per 10k reads for rearranged drivers and
     unrearranged controls alike. Such clips carry no junction information.
+
+    The obvious objection is that IG switch regions are themselves G-rich, so a
+    homopolymer threshold might discard the very translocations this tool exists
+    to find. Measured on OCI-Ly7, which carries a confirmed t(8;14) MYC-IGH
+    (``test_noise_filter_safety.py``):
+
+        read class                          n   rejected   median clip G-fraction
+        real MYC<->IGH junction reads       5      0/5              0.400
+        artefact reads (IGH -> chr2:32,916) 9      9/9              0.877
+
+    Genuine IG-switch junction clips sit near G=0.40; artefact clips near G=0.88.
+    The 0.70 threshold falls in the empty gap between them, so no real junction
+    read is lost. Re-run that script before moving _HOMOPOLYMER_FRAC.
     """
     if not seq:
         return False

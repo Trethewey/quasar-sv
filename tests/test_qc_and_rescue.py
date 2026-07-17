@@ -187,6 +187,30 @@ def test_canonical_pair_is_not_exempt_from_the_discordant_requirement():
     assert fake.tier == "T3"
 
 
+def test_assembly_supported_calls_are_exempt():
+    """An assembled contig across the junction is not a cross-mapped clip.
+
+    Fairness matters here as much as correctness: assembly-based callers report
+    PE=0 by construction for their strongest calls (svaba sets dr_evi=0 when
+    EVDNC=ASSMB; factera hardcodes discordant_pairs=0). Without this exemption
+    the rule would delete a competitor's best evidence and flatter our own tool.
+    """
+    asm = _fc("S1", "8", 127_740_000, "14", 106_500_000,
+              gene_a="MYC", gene_b="IGH", tier="T1", sr=20, pe=0)
+    asm.assembly_contigs = 1
+    assert demote_interchromosomal_without_discordant([asm]) == 0
+    assert asm.tier == "T1"
+
+
+def test_our_own_scanner_gets_no_assembly_exemption():
+    """The scanner always emits assembly_contigs=0, so the rule binds us fully."""
+    ours = _fc("S1", "2", 89_790_000, "16", 46_390_722,
+               gene_a="IGK", gene_b="", tier="T2", sr=32, pe=0)
+    ours.assembly_contigs = 0
+    assert demote_interchromosomal_without_discordant([ours]) == 1
+    assert ours.tier == "T3"
+
+
 def test_intrachromosomal_calls_are_untouched():
     """A short-range event sits inside one insert, so no discordant pair is
     expected and its absence is not evidence of an artefact."""

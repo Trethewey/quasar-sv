@@ -199,8 +199,24 @@ def demote_interchromosomal_without_discordant(
     positives and cost zero true positives (recall stayed 1.000, precision
     0.034 -> 0.375).
 
-    Intrachromosomal calls are untouched: a short-range event legitimately sits
-    inside one insert, so no discordant pair is expected.
+    Two exemptions, both required for the rule to be fair:
+
+    * **Intrachromosomal calls.** A short-range event legitimately sits inside a
+      single insert, so no discordant pair is expected and its absence means
+      nothing.
+    * **Assembly-supported calls.** A contig assembled across the junction is
+      independent evidence that the two loci are joined — it is not a
+      cross-mapped clip — so the premise above does not apply. This matters for
+      fairness, not just correctness: assembly-based callers report PE=0 BY
+      CONSTRUCTION for their strongest calls (``svaba.py`` sets ``dr_evi = 0``
+      when ``EVDNC == "ASSMB"``; ``factera.py`` hardcodes
+      ``discordant_pairs=0`` because FACTERA contigs a breakpoint by design).
+      Without this exemption the rule would silently delete a competitor's best
+      evidence and flatter this tool in the benchmark.
+
+    Note the asymmetry runs AGAINST us: Quasar's own scanner always emits
+    ``assembly_contigs=0``, so the rule binds its own calls in full and exempts
+    none of them.
 
     Returns the number of calls downgraded.
     """
@@ -211,6 +227,8 @@ def demote_interchromosomal_without_discordant(
         if c.chrom_a == c.chrom_b:
             continue
         if c.discordant_pairs >= min_discordant:
+            continue
+        if c.assembly_contigs > 0:
             continue
         c.tier = "T3"
         if "no_discordant_support" not in c.qc_flags:
