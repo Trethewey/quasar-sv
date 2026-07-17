@@ -77,6 +77,28 @@ def test_partner_inference_from_artefact_is_removed():
         rescue_ig_driver_pairs([], cfg=RescueConfig())
 
 
+def test_removed_flags_are_rejected_not_silently_ignored():
+    """A flag the pipeline no longer reads must ERROR, not be quietly accepted.
+
+    --lineage / --metadata fed only the partner inference, and
+    --chrom-sa-inference drove the coordinate-fabricating module. Leaving any of
+    them parseable would let an operator believe they had set something. Hiding
+    one behind argparse.SUPPRESS is not removal — it still parses.
+    """
+    from quasarsv.cli import main
+    for flag, val in (("--lineage", "B"), ("--metadata", "m.xlsx"),
+                      ("--chrom-sa-inference", None)):
+        argv = ["call", "--sample", "S", "--bam", "x.cram",
+                "--reference", "r.fa", "--output-dir", "o", flag]
+        if val is not None:
+            argv.append(val)
+        # argparse exits 2 on an unrecognised argument; anything else means the
+        # flag was accepted and silently ignored.
+        with pytest.raises(SystemExit) as e:
+            main(argv)
+        assert e.value.code == 2, f"{flag} was accepted rather than rejected"
+
+
 def test_lineage_prior_is_gone_not_merely_ignored():
     """The B/T prior must not survive as a control that does nothing.
 

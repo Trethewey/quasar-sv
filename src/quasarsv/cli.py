@@ -433,8 +433,6 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--pad-locus-bp", type=int, default=5_000)
     p_scan.add_argument("--skip-reports", action="store_true",
                         help="only emit the fusion TSV; skip HTML render")
-    p_scan.add_argument("--chrom-sa-inference", action="store_true",
-                        help=argparse.SUPPRESS)   # removed: fabricated breakpoint coordinates
     p_scan.add_argument("--no-mapq-weighting", action="store_true",
                         help="disable GRIDSS-style MAPQ-weighted contribution; revert to "
                              "hard-cutoff counting (legacy mode)")

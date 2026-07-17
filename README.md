@@ -41,9 +41,21 @@ corroborated by multiple independent callers.
 
 ## Installation
 
+From a clone (the repository is currently private, so this is the reliable route):
+
 ```bash
-pip install "git+https://github.com/Trethewey/Quasar.git#egg=quasar-sv[bam]"
+git clone https://github.com/Trethewey/Quasar.git
+cd Quasar
+pip install ".[bam]"
 ```
+
+Or directly, if you have repository access:
+
+```bash
+pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/Quasar.git"
+```
+
+The `[bam]` extra pulls in pysam, without which the BAM/CRAM scanner cannot run.
 
 CLI entry point: `quasar`. Python package: `quasarsv`. (A PyPI release under the
 name `quasar-sv` is planned; until then install from the repository as above.)
