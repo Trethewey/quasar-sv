@@ -44,11 +44,32 @@ class TruthEntry:
 
     @property
     def is_positive(self) -> bool:
-        return self.truth_class in ("confirmed", "likely", "driver_focal")
+        """A scoreable positive needs a gene pair.
+
+        A row naming no genes (``gene_a = '-'``) cannot be matched by any
+        gene-pair call, so counting it as a positive would charge every tool a
+        false negative it had no way to avoid. Such rows document a sample
+        (e.g. a published SV burden with no named partners) without scoring it.
+        """
+        return (self.truth_class in ("confirmed", "likely", "driver_focal")
+                and bool(self.pair))
 
     @property
     def is_negative(self) -> bool:
         return self.truth_class == "none_expected"
+
+    @property
+    def is_disputed(self) -> bool:
+        """Quarantined: literature and reads disagree, the material's identity is
+        contested, or the event is outside the panel's vocabulary.
+
+        A disputed row is scored neither as a true positive nor a false negative,
+        and a call matching it is not a false positive. Resolving such a row in
+        whichever direction flattered the tool is exactly the error this
+        benchmark exists to avoid — so it is excluded, and counted in the
+        report so the exclusion stays visible.
+        """
+        return self.truth_class == "disputed"
 
 
 def load_truth_set(path: str | Path) -> list[TruthEntry]:
@@ -93,6 +114,10 @@ class SampleScore:
     # FP: T1 calls whose gene pair matches no truth entry (and the sample is
     # not specifically a negative control)
     fp_t1_count: int = 0
+    # Detection-vs-lookup split: matched pairs for which a direct read-level
+    # junction exists in the CRAM, versus those the tool got right without one.
+    detected_pairs: list[frozenset[str]] = field(default_factory=list)
+    lookup_only_pairs: list[frozenset[str]] = field(default_factory=list)
 
 
 @dataclass
@@ -103,6 +128,11 @@ class BenchmarkScore:
     tp: int = 0
     fp: int = 0
     fn: int = 0
+    # Of `tp`, how many were backed by a direct read-level junction (detection)
+    # versus how many the tool named without one (lookup / inference). Only
+    # populated when a junction-support set is supplied.
+    tp_detected: int = 0
+    tp_lookup_only: int = 0
 
     @property
     def precision(self) -> float:
@@ -125,9 +155,12 @@ def score_calls_against_truth(
     truth: list[TruthEntry],
     tool_name: str = "quasarsv",
     accept_tiers: tuple[str, ...] = ("T1", "T2"),
-    ambiguous_alts_count_as_fp: bool = False,
+    fp_tiers: tuple[str, ...] | None = None,
+    ambiguous_alts_count_as_fp: bool = True,
     restrict_to_scored_samples: bool = True,
     relax_canonical_ig_partner: bool = False,
+    match_driver_only: bool = False,
+    junction_support: set[tuple[str, frozenset[str]]] | None = None,
     canonical_ig_set: frozenset[str] = frozenset(
         {"IGH", "IGK", "IGL", "IGH_Emu", "IGH_3RR",
          "TRA", "TRB", "TRG", "TRD"}),
@@ -143,23 +176,52 @@ def score_calls_against_truth(
     to FP.
 
     For samples WITH expected truths, any T1 call whose gene pair is not in
-    the sample's expected set increments FP. ``ig_partner_ambiguous`` calls
-    can optionally be excluded from FP counting via
-    ``ambiguous_alts_count_as_fp=False`` (the default — the rescue's
-    intentional ambiguous alternatives shouldn't penalise precision).
+    the sample's expected set increments FP.
+
+    Scoring honesty
+    ---------------
+    The headline metric must measure DETECTION, not agreement between a
+    canonical-partner prior and a literature-derived truth set that encodes the
+    same canonical translocations. Three former leniencies each made a call
+    match without the tool having resolved the fusion, and all three are now
+    off by default:
+
+    * ``relax_canonical_ig_partner`` — let BCL6-IGL match truth BCL6-IGH.
+    * ``match_driver_only`` — let a driver-only call match a driver-IG truth.
+    * ``ambiguous_alts_count_as_fp=False`` — exempted a tool's own hedged
+      alternates from precision. Emitting IGH, IGK *and* IGL for one driver and
+      being scored only on the one that hits is not precision.
+
+    Enable them only to report a clearly-labelled lenient figure ALONGSIDE the
+    strict one, never as the headline.
 
     Parameters
     ----------
+    fp_tiers
+        Tiers at which a non-truth call counts as a false positive. Defaults to
+        ``accept_tiers``, so a tool is charged for exactly the tiers it is
+        credited for. Counting TPs at T1+T2 while charging FPs only at T1 gives
+        free recall to whichever tool emits the most T2 — a structural reward
+        for volume, not accuracy, worth ~12k calls to one tool here and ~500 to
+        another. Pass ``("T1",)`` to report the clinically-actionable-only view
+        alongside the review-list view.
     restrict_to_scored_samples
         Skip truth entries whose sample appears in no call. Useful when the
         truth set anticipates future scans so "unscanned" doesn't conflate
         with "missed". Default True.
     relax_canonical_ig_partner
         Treat a driver-IG canonical pair as a match for a truth driver-IG
-        canonical pair as long as both IG sides are in
-        ``canonical_ig_set``. Lets BCL6-IGL count as a match for truth
-        BCL6-IGH (both represent the same driver rearrangement to *an* IG
-        locus). Default False (strict gene-pair match).
+        canonical pair as long as both IG sides are in ``canonical_ig_set``.
+        Default False (strict gene-pair match).
+    match_driver_only
+        Treat a call annotating only the driver as a match for a driver-IG
+        truth. Requires ``relax_canonical_ig_partner``. Default False.
+    junction_support
+        ``{(sample, frozenset({gene_a, gene_b}))}`` for which a direct
+        read-level junction was independently established in the reads. When
+        supplied, each TP is split into detected (junction present) versus
+        lookup-only (named correctly without one). A tool scoring TPs with no
+        junction support is reproducing a prior, not detecting an event.
     """
     truth_by_sample: dict[str, list[TruthEntry]] = defaultdict(list)
     for t in truth:
@@ -172,6 +234,7 @@ def score_calls_against_truth(
     per_sample: dict[str, SampleScore] = {}
     tier_rank = {"T1": 0, "T2": 1, "T3": 2}
     accept_rank = {tier_rank[t] for t in accept_tiers}
+    fp_tier_set = set(fp_tiers if fp_tiers is not None else accept_tiers)
 
     def _match(call_pair: frozenset[str], expected_pair: frozenset[str]) -> bool:
         if call_pair == expected_pair:
@@ -186,12 +249,12 @@ def score_calls_against_truth(
             e_ig = expected_pair & canonical_ig_set
             if c_drv and c_drv == e_drv and c_ig and e_ig:
                 return True
-            # Driver-only call vs driver-IG truth: count as match when the
-            # driver is the same and the call has the driver as its sole
-            # annotated gene (typical when the IG side of an artefact-routed
-            # call has no gene annotation). Honest: we identified the driver
-            # rearrangement, just couldn't resolve the partner.
-            if (e_drv and c_drv == e_drv and not c_ig
+            # Driver-only call vs driver-IG truth. "We found the driver but
+            # could not resolve the partner" is a PARTIAL result, not a
+            # detected fusion; counting it as a match makes a tool that never
+            # resolves a partner score identically to one that always does.
+            # Off unless explicitly requested for a lenient side-metric.
+            if (match_driver_only and e_drv and c_drv == e_drv and not c_ig
                     and len(call_pair) == 1):
                 return True
         return False
@@ -200,14 +263,22 @@ def score_calls_against_truth(
         sample_calls = calls_by_sample.get(sample, [])
         if restrict_to_scored_samples and not sample_calls:
             continue   # skip unscanned samples
+        # A sample whose truth is entirely disputed is not scoreable at all.
+        # Without this it would present as an empty expected set, which silently
+        # turns every T1 call into a false positive — the opposite of quarantine.
+        if not any(t.is_positive or t.is_negative for t in sample_truth):
+            continue
         score = SampleScore(sample=sample)
-        score.is_negative_control = all(t.is_negative for t in sample_truth)
+        score.is_negative_control = all(t.is_negative for t in sample_truth
+                                        if not t.is_disputed)
         score.expected_pairs = [t.pair for t in sample_truth if t.is_positive]
+        disputed_pairs = [t.pair for t in sample_truth if t.is_disputed and t.pair]
 
         # T1 calls in this sample (gene-pair sets)
         for c in sample_calls:
             if c.tier == "T1":
                 score.t1_call_pairs.append(_call_pair(c))
+        disputed_sets = [d for d in disputed_pairs if d]
 
         # Match each expected pair against the call set
         for exp in score.expected_pairs:
@@ -221,20 +292,30 @@ def score_calls_against_truth(
             if best_tier is not None:
                 score.matched_pairs.append(exp)
                 score.match_tier[exp] = best_tier
+                if junction_support is not None:
+                    if (sample, exp) in junction_support:
+                        score.detected_pairs.append(exp)
+                    else:
+                        score.lookup_only_pairs.append(exp)
             else:
                 score.missed_pairs.append(exp)
 
-        # FP: T1 calls whose gene-pair matches no expected pair
+        # FP: calls at an FP-charged tier whose gene-pair matches no expected pair
         for c in sample_calls:
-            if c.tier != "T1":
+            if c.tier not in fp_tier_set:
                 continue
             if not ambiguous_alts_count_as_fp and "ig_partner_ambiguous" in c.qc_flags:
                 continue
             cp = _call_pair(c)
             if not cp:
                 continue
-            if not any(_match(cp, exp) for exp in score.expected_pairs):
-                score.fp_t1_count += 1
+            if any(_match(cp, exp) for exp in score.expected_pairs):
+                continue
+            # A call matching a quarantined (disputed) truth row is neither
+            # credited nor charged — the evidence is genuinely unresolved.
+            if any(cp == d or _match(cp, d) for d in disputed_sets):
+                continue
+            score.fp_t1_count += 1
 
         per_sample[sample] = score
 
@@ -243,6 +324,8 @@ def score_calls_against_truth(
         bench.tp += len(s.matched_pairs)
         bench.fn += len(s.missed_pairs)
         bench.fp += s.fp_t1_count
+        bench.tp_detected += len(s.detected_pairs)
+        bench.tp_lookup_only += len(s.lookup_only_pairs)
     return bench
 
 
@@ -253,7 +336,8 @@ def write_benchmark_tsv(score: BenchmarkScore, path: str | Path) -> None:
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
         w.writerow(["sample", "expected_pairs", "matched_pairs", "missed_pairs",
-                    "match_tiers", "t1_calls", "fp_t1", "negative_control"])
+                    "match_tiers", "t1_calls", "fp_t1", "negative_control",
+                    "detected_pairs", "lookup_only_pairs"])
         for sample, s in sorted(score.per_sample.items()):
             w.writerow([
                 sample,
@@ -265,13 +349,56 @@ def write_benchmark_tsv(score: BenchmarkScore, path: str | Path) -> None:
                 len(s.t1_call_pairs),
                 s.fp_t1_count,
                 "yes" if s.is_negative_control else "no",
+                ";".join("-".join(sorted(p)) for p in s.detected_pairs),
+                ";".join("-".join(sorted(p)) for p in s.lookup_only_pairs),
             ])
         w.writerow([])
         w.writerow([f"# tool={score.tool_name}",
                     f"TP={score.tp}", f"FP={score.fp}", f"FN={score.fn}",
                     f"precision={score.precision:.4f}",
                     f"recall={score.recall:.4f}",
-                    f"f1={score.f1:.4f}"])
+                    f"f1={score.f1:.4f}",
+                    f"tp_detected={score.tp_detected}",
+                    f"tp_lookup_only={score.tp_lookup_only}"])
+
+
+def load_junction_support(
+    path: str | Path,
+    min_sr: int = 0,
+    min_pe: int = 0,
+) -> set[tuple[str, frozenset[str]]]:
+    """Load independently-established read-level junctions.
+
+    Expects a TSV with ``sample``, ``gene_a``, ``gene_b``. If a ``supported``
+    column is present ("yes"/"true"/"1"), it is authoritative and the count
+    thresholds are ignored — the caller has already applied a background model.
+    Otherwise a row qualifies when it clears ``min_sr`` OR ``min_pe``.
+
+    Returns ``{(sample, frozenset({gene_a, gene_b}))}`` for use as
+    ``score_calls_against_truth(junction_support=...)``.
+    """
+    p = Path(path)
+    out: set[tuple[str, frozenset[str]]] = set()
+    if not p.exists():
+        return out
+    with open(p, encoding="utf-8") as fh:
+        r = csv.DictReader(fh, delimiter="\t")
+        for row in r:
+            sample = (row.get("sample") or "").strip()
+            ga = (row.get("gene_a") or "").strip()
+            gb = (row.get("gene_b") or "").strip()
+            if not sample or not ga or not gb:
+                continue
+            if "supported" in (r.fieldnames or []):
+                if (row.get("supported") or "").strip().lower() not in ("yes", "true", "1"):
+                    continue
+            else:
+                sr = int(float(row.get("sr_junction") or 0))
+                pe = int(float(row.get("pe_junction") or 0))
+                if sr < min_sr and pe < min_pe:
+                    continue
+            out.add((sample, frozenset({ga, gb})))
+    return out
 
 
 def builtin_truth_path() -> Path:

@@ -1,14 +1,27 @@
-"""SA-tag aware scanner — extracts the TRUE partner of artefact-region reads.
+"""SA-tag aware scanner for reads landing in a reference artefact locus.
 
-Polymorphic mapping artefacts (e.g. chr2:32916xxx polyG attractor on GRCh38)
-absorb soft-clipped fragments of chimeric reads whose real partner is an IG
-switch region or a driver oncogene. The SA tag of any read mapping into the
-artefact records where the OTHER end of that chimera actually mapped. Scanning
-artefact loci and harvesting SA-tag positions therefore reveals the real
-translocation partners directly, without the heuristic pairing in `rescue.py`.
+The premise here needs stating carefully, because it was originally wrong. The
+GRCh38 poly-G attractor at chr2:32,916 does NOT preferentially absorb chimeric
+IG-switch fragments. It absorbs **2-colour-chemistry poly-G tails and adapter
+read-through from the entire library**, at a uniform rate: every locus measured
+on the WGS validation cohort sheds ~200-280 such reads per 10k, rearranged or
+not (``quasar_development/accuracy_audit_2026-07-16/artefact_specificity.py``).
 
-Output is again a list of BreakpointCall records:
-  chrom_a = real partner chromosome (from SA tag)
+So harvesting SA tags from reads inside the attractor does not "reveal the real
+translocation partners" — for poly-G reads it merely enumerates whichever locus
+each junk read originated from, i.e. the whole panel. That is the source of the
+artefact's apparent promiscuity.
+
+Note the read geometry: at the artefact the ALIGNED segment is the poly-G run
+and the soft-clip holds the real genomic sequence — the mirror image of the
+driver-side view. So the clip-based noise filter used by ``cram_scanner`` does
+not apply here; the aligned segment must be tested instead.
+
+What survives the filter is a genuine chimera that happens to overlap the
+artefact window. Those are still emitted, as ordinary candidate breakpoints.
+
+Output is a list of BreakpointCall records:
+  chrom_a = partner chromosome (from SA tag)
   chrom_b = artefact chromosome
 """
 from __future__ import annotations
@@ -24,7 +37,7 @@ except ImportError as e:  # pragma: no cover
 from ..model import BreakpointCall, Evidence
 from ..parsers.base import normalise_order
 from ..qc import _load_artefact_loci
-from .cram_scanner import _parse_sa_tag, _clip_side
+from .cram_scanner import _parse_sa_tag, _clip_side, is_noise_clip
 
 
 @dataclass
@@ -36,6 +49,25 @@ class SAScannerConfig:
     # Polymorphic artefact loci attract millions of reads — cap aggressively
     # since even 50k reads typically yields rich SA-tag clustering signal.
     max_reads_per_locus: int = 200_000
+    # Reject reads whose ALIGNED segment inside the artefact is a poly-G/C run
+    # or adapter. Those are sequencing junk from an arbitrary locus, and their
+    # SA tag names that origin locus rather than any translocation partner.
+    filter_noise_alignments: bool = True
+
+
+def _aligned_seq(read) -> str:
+    """The portion of the read actually aligned here (soft-clips excluded)."""
+    if read.query_sequence is None or not read.cigartuples:
+        return ""
+    start = 0
+    op, ln = read.cigartuples[0]
+    if op == 4:
+        start = ln
+    end = len(read.query_sequence)
+    op, ln = read.cigartuples[-1]
+    if op == 4:
+        end -= ln
+    return read.query_sequence[start:end] if end > start else ""
 
 
 def scan_artefacts_sa(
@@ -87,25 +119,27 @@ def scan_artefacts_sa(
                 sa = read.get_tag("SA")
             except KeyError:
                 continue
-            parsed = _parse_sa_tag(sa)
-            if parsed is None:
-                continue
-            sa_chrom, sa_pos, sa_strand, sa_cigar = parsed
-            # Don't re-cluster intra-artefact
-            if sa_chrom == ref_chrom and s - 1000 <= sa_pos <= e + 1000:
+            # The read is only informative if what aligned HERE is real sequence.
+            # A poly-G run or adapter aligned into the attractor tells us nothing
+            # except which locus the junk read came from.
+            if cfg.filter_noise_alignments and is_noise_clip(_aligned_seq(read)):
                 continue
             primary_clip = _clip_side(read.cigarstring or "")
-            sa_clip = _clip_side(sa_cigar)
             strand_b = "-" if primary_clip == "L" else "+"
-            strand_a = "-" if sa_clip == "L" else "+"
-            key = (sa_chrom, sa_pos // cfg.pos_tolerance, strand_a, strand_b)
-            d = clusters.setdefault(key, dict(
-                sa_chrom=sa_chrom, sa_pos=sa_pos,
-                strand_a=strand_a, strand_b=strand_b,
-                sr=0, mapqs=[], art_positions=[]))
-            d["sr"] += 1
-            d["mapqs"].append(read.mapping_quality)
-            d["art_positions"].append(read.reference_start)
+            for sa_chrom, sa_pos, sa_strand, sa_cigar in _parse_sa_tag(sa):
+                # Don't re-cluster intra-artefact
+                if sa_chrom == ref_chrom and s - 1000 <= sa_pos <= e + 1000:
+                    continue
+                sa_clip = _clip_side(sa_cigar)
+                strand_a = "-" if sa_clip == "L" else "+"
+                key = (sa_chrom, sa_pos // cfg.pos_tolerance, strand_a, strand_b)
+                d = clusters.setdefault(key, dict(
+                    sa_chrom=sa_chrom, sa_pos=sa_pos,
+                    strand_a=strand_a, strand_b=strand_b,
+                    sr=0, mapqs=[], art_positions=[]))
+                d["sr"] += 1
+                d["mapqs"].append(read.mapping_quality)
+                d["art_positions"].append(read.reference_start)
 
         for key, d in clusters.items():
             if d["sr"] < cfg.min_split_reads:

@@ -1,12 +1,28 @@
-"""Chromosome-level SA-tag partner inference.
+"""Chromosome-level SA-tag partner inference — REMOVED, it fabricated coordinates.
 
-The position-clustered SA scanner (`sa_aware.scan_artefacts_sa`) misses
-diffuse partner signals — IG V regions span >1 Mb, so SA-tag mate positions
-spread thinly and never reach the per-position cluster threshold. This module
-sidesteps that by aggregating at chromosome level: for each artefact locus,
-it ranks the SA-tag chromosomes and emits putative `artefact_locus ↔ partner`
-calls for any chromosome carrying ≥`min_fraction` of all SA-tags (or above a
-noise floor estimated from non-canonical partners).
+The idea was: the position-clustered SA scanner misses diffuse partner signals,
+because IG V regions span >1 Mb and SA-tag positions spread too thinly to reach
+a per-position cluster threshold. So aggregate at chromosome level instead, and
+emit an ``artefact_locus <-> partner`` call for any chromosome carrying >=2% of
+the artefact's SA tags.
+
+Two independent defects make that unsalvageable:
+
+1. **The emitted breakpoint is invented.** The call's position was the MEDIAN of
+   every SA position on that chromosome. Those positions are unrelated to each
+   other, so their median is an arbitrary coordinate that need not sit near any
+   real junction — and ``_nearest_gene`` then named whichever driver or IG locus
+   happened to lie closest to it. A fabricated coordinate that lands near IGH
+   yields a confident-looking IGH partner.
+2. **The input is not translocation signal.** Reads inside the chr2:32,916
+   attractor are 2-colour poly-G tails and adapter read-through drawn uniformly
+   from the whole library (measured: every locus sheds ~200-280 per 10k reads,
+   rearranged or not). Ranking their SA chromosomes therefore ranks chromosomes
+   roughly by size, so every large chromosome clears a 2% share.
+
+A real diffuse-partner signal is recovered from discordant mates, which map
+independently of the junction sequence and carry a true coordinate. That is what
+``cram_scanner``'s discordant path does.
 """
 from __future__ import annotations
 
@@ -50,7 +66,22 @@ def _nearest_gene(idx, chrom: str, pos: int, pad: int = 200_000):
     return ""
 
 
-def scan_artefacts_chrom_inference(
+def scan_artefacts_chrom_inference(*_args, **_kwargs) -> list[BreakpointCall]:
+    """Removed: emitted a median-of-unrelated-positions as a breakpoint.
+
+    See the module docstring. Diffuse partner signal comes from discordant
+    mates via ``cram_scanner``, which carry real coordinates.
+    """
+    raise NotImplementedError(
+        "scan_artefacts_chrom_inference has been removed: it emitted the MEDIAN "
+        "of unrelated SA positions on a chromosome as a breakpoint coordinate, "
+        "then named the nearest gene as the partner. Its input (reads inside the "
+        "chr2:32,916 poly-G attractor) is library-wide adapter/poly-G noise, not "
+        "translocation signal. Use the discordant-pair path in cram_scanner."
+    )
+
+
+def _removed_scan_artefacts_chrom_inference(
     bam_or_cram: str,
     reference_fasta: str,
     sample: str,

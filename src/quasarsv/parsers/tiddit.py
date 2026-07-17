@@ -1,15 +1,33 @@
 """TIDDIT VCF parser.
 
-TIDDIT 3.x emits INV, DEL, DUP, INS, TDUP, BND with INFO fields:
-  SVTYPE, END (or for BND parsed from ALT), CIPOS, CIEND, REGIONA, REGIONB,
-  LFA / LTE / LFB / LTB (per-side discordant / split-read counts).
+TIDDIT 3.x emits INV, DEL, DUP, INS, TDUP, BND. Evidence lives in two places and
+the distinction matters — reading it wrongly silently zeroes every call:
+
+  FORMAT (per-sample, authoritative):
+    DV  discordant pairs supporting the variant
+    RV  split ("reference-variant") reads supporting the variant
+  INFO (Number=2, "read-pairs,split-reads" — NOT scalars):
+    LTE  links to the event         e.g. LTE=26,5
+    LFA  links from window A        e.g. LFA=30,6
+    LFB  links from window B
+
+An earlier version read ``DV``/``RV`` out of INFO (they are FORMAT), passed the
+comma-pair ``LFA``/``LFB`` through an int() that threw and defaulted to 0, and
+summed ``LTA``/``LTB``, which TIDDIT does not emit at all (the event field is
+``LTE``). Every record therefore scored split_reads=0 / discordant_pairs=0, fell
+below the single-caller tier thresholds, and landed at T3 — producing a
+benchmark result of tp=0 AND fp=0, i.e. TIDDIT appearing to detect nothing
+whatsoever. That was our bug being reported as TIDDIT's performance.
 
 Quality is in QUAL (per-record). FILTER is PASS / various tiddit-specific tags.
 """
 from __future__ import annotations
 
 from ..model import BreakpointCall, Evidence
-from .base import iter_records, parse_info, parse_bnd_alt, normalise_order
+from .base import (
+    iter_records, parse_info, parse_bnd_alt, normalise_order,
+    parse_format_sample,
+)
 
 
 def _int(v, default=0):
@@ -19,6 +37,16 @@ def _int(v, default=0):
         return int(v)
     except ValueError:
         return default
+
+
+def _pair(v, idx: int, default=0):
+    """Read one element of a TIDDIT Number=2 'read-pairs,split-reads' field."""
+    if not v or v == ".":
+        return default
+    parts = str(v).split(",")
+    if idx >= len(parts):
+        return default
+    return _int(parts[idx], default)
 
 
 def parse_tiddit(path: str, sample: str) -> list[BreakpointCall]:
@@ -37,12 +65,13 @@ def parse_tiddit(path: str, sample: str) -> list[BreakpointCall]:
         except ValueError:
             q = 0.0
 
-        # TIDDIT discordant + split counts (LFA = forward-strand discordants on A side,
-        # LTE = trans-evidence, etc.). Sum read-pair-style fields conservatively.
-        disc = (_int(info.get("LFA")) + _int(info.get("LFB"))
-                + _int(info.get("LTA")) + _int(info.get("LTB"))
-                + _int(info.get("DV")))
-        split = _int(info.get("SR")) + _int(info.get("RV"))
+        # Prefer the per-sample FORMAT counts; fall back to INFO/LTE (the
+        # "links to event" pair) when a VCF carries no sample column.
+        fmt_sample = {}
+        if len(f) >= 10:
+            fmt_sample = parse_format_sample(f[8], f[9])
+        disc = _int(fmt_sample.get("DV"), _pair(info.get("LTE"), 0))
+        split = _int(fmt_sample.get("RV"), _pair(info.get("LTE"), 1))
 
         if sv_type == "BND":
             mate_id = info.get("MATEID", "")

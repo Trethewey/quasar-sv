@@ -99,8 +99,11 @@ def compute_library_stats(
 ) -> LibraryStats:
     """Sample up to ``sample_size`` reads from the BAM and infer library stats.
 
-    Strategy: stream from the first reasonable contig (chr1 by default) — fast
-    on large CRAMs because htslib only decodes the first slice.
+    Strategy: sample from a representative euchromatic window on chr1
+    (30–60 Mb). Streaming from the *start* of chr1 only covers the first ~1 Mb —
+    the subtelomeric repeat region where ~75% of reads are MAPQ 0 — which yields
+    a false median MAPQ of 0 and biases the duplicate/insert stats. The mid-arm
+    window is unique-mapping (median MAPQ ~60) and representative of the library.
     """
     open_kwargs = {}
     if bam_or_cram.endswith(".cram") and reference_fasta:
@@ -117,12 +120,21 @@ def compute_library_stats(
 
     # Choose a contig — prefer chr1, fall back to first reference.
     refs = list(sam.references)
-    contig = "chr1" if "chr1" in refs else (refs[0] if refs else None)
+    contig = "chr1" if "chr1" in refs else ("1" if "1" in refs else (refs[0] if refs else None))
     if contig is None:
         sam.close()
         return LibraryStats()
 
-    for read in sam.fetch(contig):
+    # Representative euchromatic window on chr1 (avoids the subtelomeric repeats
+    # at the contig start). Fall back to whole-contig for non-chr1 references.
+    if contig in ("chr1", "1"):
+        contig_len = sam.get_reference_length(contig)
+        win = (30_000_000, 60_000_000) if contig_len and contig_len > 60_000_000 else (None, None)
+        fetch_iter = sam.fetch(contig, win[0], win[1]) if win[0] is not None else sam.fetch(contig)
+    else:
+        fetch_iter = sam.fetch(contig)
+
+    for read in fetch_iter:
         n_total += 1
         if n_total > sample_size * 4:    # safety cap on iteration
             break

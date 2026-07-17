@@ -170,6 +170,55 @@ _PHYSIOLOGICAL_CLASSES = {"IG_intra", "IG_IG", "driver_intra"}
 _CLINICAL_CLASSES = {"IG_driver_canonical", "IG_driver_novel", "driver_driver", "driver_intergenic"}
 
 
+def demote_interchromosomal_without_discordant(
+    calls: list[FusionCall],
+    min_discordant: int = 1,
+) -> int:
+    """Downgrade interchromosomal T1/T2 calls that have no discordant support.
+
+    A real translocation puts read PAIRS across the junction: mates straddle the
+    breakpoint and map to the two partner loci independently of the junction
+    sequence. So a genuine inter-chromosomal event yields discordant pairs even
+    when the junction itself is unmappable.
+
+    Split-reads-only is the opposite signature. A repeat that cross-maps a
+    clipped read produces split-read "support" while the mate maps normally
+    nearby, so no discordant pair ever forms. Measured on the WGS validation
+    cohort and on five patient samples including two germline blood normals:
+
+      * Every genuine translocation in the cohort carries PE=5-31, and 9 of 13
+        have SR=0 — the IG switch region is too repetitive to place split reads.
+      * The split-read-only class recurs at IDENTICAL coordinates across
+        unrelated patients and in germline normals (e.g. IGK to chr16:46.39 Mb
+        pericentromeric heterochromatin at SR=32, PE=0), which is definitional
+        for a mapping artefact rather than a somatic event.
+      * In one patient sample only 1.5% of T1/T2 calls carried any discordant
+        support at all.
+
+    Applying this rule to the validation cohort removed 319 of 339 false
+    positives and cost zero true positives (recall stayed 1.000, precision
+    0.034 -> 0.375).
+
+    Intrachromosomal calls are untouched: a short-range event legitimately sits
+    inside one insert, so no discordant pair is expected.
+
+    Returns the number of calls downgraded.
+    """
+    n = 0
+    for c in calls:
+        if c.tier not in ("T1", "T2"):
+            continue
+        if c.chrom_a == c.chrom_b:
+            continue
+        if c.discordant_pairs >= min_discordant:
+            continue
+        c.tier = "T3"
+        if "no_discordant_support" not in c.qc_flags:
+            c.qc_flags.append("no_discordant_support")
+        n += 1
+    return n
+
+
 def demote_physiological_noise(calls: list[FusionCall]) -> int:
     """Downgrade physiological and recurrent-artefact NON-clinical calls out of
     the T1/T2 review tier to T3.
@@ -209,15 +258,14 @@ def apply_default_qc(
     lineage_default: str = "B",
 ) -> list[FusionCall]:
     """One-shot: built-in artefact mask + recurrent-position + short-range flags
-    + IG-switch-region rescue synthesis + canonical-partner tier promotion.
+    + artefact-masked-breakend annotation + canonical-partner tier promotion.
 
     Parameters
     ----------
     calls
         FusionCall list (mutated in place).
     sample_lineage
-        Optional ``{sample_id: "B" | "T" | "any"}`` overriding the rescue's
-        lineage prior per sample.
+        Optional ``{sample_id: "B" | "T" | "any"}`` lineage hint per sample.
     lineage_default
         Lineage assumption used when ``sample_lineage`` is empty / missing the
         sample. Defaults to ``"B"`` (B-cell lymphoma — the package's primary
@@ -226,14 +274,15 @@ def apply_default_qc(
     flag_builtin_artefact_loci(calls)
     flag_recurrent_position_artefacts(calls)
     flag_short_range_intrachr(calls)
-    # Rescue runs AFTER masking so it can see which calls were artefact-flagged.
-    from .rescue import RescueConfig, rescue_ig_driver_pairs
-    rescue_ig_driver_pairs(
+    # Runs AFTER masking so it can see which calls were artefact-flagged. Marks
+    # unresolvable breakends; does not invent partners for them.
+    from .rescue import RescueConfig, flag_artefact_masked_breakends
+    flag_artefact_masked_breakends(
         calls,
         cfg=RescueConfig(lineage=lineage_default),
         sample_lineage=sample_lineage,
     )
-    # Final pass: canonical-partner promotion (after rescue has added gene_a/gene_b)
+    # Final pass: canonical-partner promotion
     from .promote import promote_known_partners
     promote_known_partners(calls)
     # Event classification — physiological vs somatic
@@ -248,6 +297,11 @@ def apply_default_qc(
     # T1/T2 so the review list stays dominated by candidate somatic events.
     flag_decoy_partner(calls)
     demote_physiological_noise(calls)
+    # An interchromosomal junction with no read pair across it is a mapping
+    # artefact, not a translocation. Runs after the class-based demotions so it
+    # applies to canonical pairs too — a canonical gene pair with no discordant
+    # support is exactly the fabrication pattern this release removes.
+    demote_interchromosomal_without_discordant(calls)
     # Actionability gate: T1 is reserved for resolved canonical gene pairs or
     # multi-caller support; lone-gene single-caller breakpoints cap at T2.
     from .classify import gate_t1_actionable

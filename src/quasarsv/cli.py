@@ -211,18 +211,13 @@ def cmd_scan_cram(args) -> int:
                 if not args.no_adaptive_insert else None)
     bps = scan_cram(args.bam, args.reference, args.sample, cfg=cfg,
                     library_stats_path=lib_path)
-    # SA-aware artefact scan — reveals true partners hidden behind polyG attractors
+    # SA-aware artefact scan — genuine chimeras that overlap an artefact window.
+    # Poly-G/adapter alignments inside the attractor are filtered out; they name
+    # the junk read's origin locus, not a translocation partner.
     sa_bps = scan_artefacts_sa(args.bam, args.reference, args.sample,
                                cfg=SAScannerConfig(min_split_reads=max(5, args.min_split_reads)))
     per_caller = {"forge_scan": bps, "forge_scan_sa": sa_bps}
     chrom_sa_bps: list = []
-    if getattr(args, "chrom_sa_inference", False):
-        from .scanners import scan_artefacts_chrom_inference, ChromInferenceConfig
-        chrom_sa_bps = scan_artefacts_chrom_inference(
-            args.bam, args.reference, args.sample,
-            cfg=ChromInferenceConfig(),
-        )
-        per_caller["forge_scan_chrom_sa"] = chrom_sa_bps
     calls = merge_caller_calls(per_caller, cfg=MergeConfig(pos_tolerance=250))
     annotate_calls(calls)
     sample_lineage, lineage_default = _build_sample_lineage(args)
@@ -286,11 +281,18 @@ def cmd_benchmark(args) -> int:
         print(f"[benchmark] no calls loaded from {args.inputs}", file=sys.stderr)
         return 1
 
+    junction_support = None
+    if getattr(args, "junction_truth", None):
+        from .benchmark import load_junction_support
+        junction_support = load_junction_support(args.junction_truth)
+
     bench = score_calls_against_truth(
         calls, truth,
         tool_name=args.tool_name,
         ambiguous_alts_count_as_fp=args.ambiguous_alts_count_as_fp,
         relax_canonical_ig_partner=args.relax_canonical_ig_partner,
+        match_driver_only=getattr(args, "match_driver_only", False),
+        junction_support=junction_support,
         restrict_to_scored_samples=not args.include_unscanned,
     )
     out_path = Path(args.output) if args.output else None
@@ -426,12 +428,22 @@ def main(argv: list[str] | None = None) -> int:
     p_bench.add_argument("--tool-name", default="quasarsv",
                           help="label written into the benchmark output (e.g. manta, gridss2)")
     p_bench.add_argument("--output", help="output benchmark TSV (per-sample + aggregate)")
-    p_bench.add_argument("--ambiguous-alts-count-as-fp", action="store_true",
-                          help="count ig_partner_ambiguous T1 calls as false positives "
-                               "(strict mode); default off")
+    p_bench.add_argument("--no-ambiguous-alts-count-as-fp",
+                          dest="ambiguous_alts_count_as_fp",
+                          action="store_false", default=True,
+                          help="exempt ig_partner_ambiguous T1 calls from false positives; "
+                               "default OFF — hedged alternates count against precision")
     p_bench.add_argument("--relax-canonical-ig-partner", action="store_true",
-                          help="relaxed scoring: BCL6-IGL matches truth BCL6-IGH when "
-                               "both IGs are canonical (treats them as one rearrangement)")
+                          help="LENIENT side-metric, never the headline: BCL6-IGL matches "
+                               "truth BCL6-IGH when both IGs are canonical. Measures "
+                               "driver identification, not partner resolution")
+    p_bench.add_argument("--match-driver-only", action="store_true",
+                          help="LENIENT side-metric: a driver-only call matches a driver-IG "
+                               "truth. Requires --relax-canonical-ig-partner")
+    p_bench.add_argument("--junction-truth",
+                          help="TSV of independently-established read-level junctions "
+                               "(sample, gene_a, gene_b, ...) used to split true positives "
+                               "into detected vs lookup-only")
     p_bench.add_argument("--include-unscanned", action="store_true",
                           help="include truth-set samples with no calls (counted as FN); "
                                "default off — unscanned ≠ missed")
@@ -459,8 +471,7 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--skip-reports", action="store_true",
                         help="only emit the fusion TSV; skip HTML render")
     p_scan.add_argument("--chrom-sa-inference", action="store_true",
-                        help="run chromosome-level SA-tag inference at artefact loci "
-                             "(more sensitive for IG-driver partner identification)")
+                        help=argparse.SUPPRESS)   # removed: fabricated breakpoint coordinates
     p_scan.add_argument("--no-mapq-weighting", action="store_true",
                         help="disable GRIDSS-style MAPQ-weighted contribution; revert to "
                              "hard-cutoff counting (legacy mode)")
