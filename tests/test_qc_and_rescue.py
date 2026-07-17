@@ -220,6 +220,32 @@ def test_intrachromosomal_calls_are_untouched():
     assert intra.tier == "T2"
 
 
+def test_manta_bnd_depth_is_not_an_assembly_signal():
+    """BND_DEPTH must not exempt Manta from the discordant-support cull.
+
+    BND_DEPTH is a read-depth annotation Manta puts on EVERY BND record in
+    diploidSV (60/60 across the cohort's VCFs; 0/62 in candidateSV). Treating it
+    as an assembly signal exempted every Manta breakend from the false-positive
+    cull that our own calls all receive — and made the exemption depend on which
+    output file the harness parsed rather than on the evidence.
+    """
+    import tempfile
+    from quasarsv.parsers.manta import parse_manta
+    vcf = (
+        "##fileformat=VCFv4.1\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS\n"
+        "chr14\t106500000\tA\tN\tN[chr18:63100000[\t99\tPASS\t"
+        "SVTYPE=BND;MATEID=B;BND_DEPTH=42\tGT:PR:SR\t0/1:10,4:10,2\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".vcf", delete=False) as fh:
+        fh.write(vcf)
+        p = fh.name
+    calls = parse_manta(p, "S")
+    assert calls, "record should parse"
+    assert calls[0].evidence.assembly_contigs == 0, (
+        "BND_DEPTH is depth, not assembly — it must not confer an exemption")
+
+
 def test_metadata_cohort_to_lineage():
     from quasarsv.metadata import cohort_to_lineage
     assert cohort_to_lineage("PMBL") == "B"

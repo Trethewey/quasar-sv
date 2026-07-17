@@ -70,7 +70,16 @@ def parse_manta(path: str, sample: str) -> list[BreakpointCall]:
             caller="manta",
             split_reads=split_reads,
             discordant_pairs=disc_pairs,
-            assembly_contigs=1 if "CONTIG" in info or "BND_DEPTH" in info else 0,
+            # CONTIG only. BND_DEPTH is a read-DEPTH annotation Manta attaches to
+            # every BND record in diploidSV (measured: 60/60 BNDs across the
+            # cohort's VCFs carry it; 0/62 in candidateSV), so treating it as an
+            # assembly signal marked every Manta breakend as assembly-supported.
+            # That is load-bearing now: qc.demote_interchromosomal_without_
+            # discordant exempts assembly-supported calls, so this would exempt
+            # every Manta BND from the false-positive cull that our own calls all
+            # receive — and it would make the exemption depend on which output
+            # file the harness parses rather than on the evidence.
+            assembly_contigs=1 if "CONTIG" in info else 0,
             mapq=int(info.get("MAPQ", 0) or 0),
             vaf=_safe_float(info.get("BND_DEPTH"), 0.0),
             filter_pass=pass_filter,

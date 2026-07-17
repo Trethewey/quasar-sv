@@ -37,7 +37,7 @@ except ImportError as e:  # pragma: no cover
 from ..model import BreakpointCall, Evidence
 from ..parsers.base import normalise_order
 from ..qc import _load_artefact_loci
-from .cram_scanner import _parse_sa_tag, _clip_side, is_noise_clip
+from .cram_scanner import _parse_sa_tag, _clip_side, is_noise_clip, _aligned_seq
 
 
 @dataclass
@@ -55,19 +55,9 @@ class SAScannerConfig:
     filter_noise_alignments: bool = True
 
 
-def _aligned_seq(read) -> str:
-    """The portion of the read actually aligned here (soft-clips excluded)."""
-    if read.query_sequence is None or not read.cigartuples:
-        return ""
-    start = 0
-    op, ln = read.cigartuples[0]
-    if op == 4:
-        start = ln
-    end = len(read.query_sequence)
-    op, ln = read.cigartuples[-1]
-    if op == 4:
-        end -= ln
-    return read.query_sequence[start:end] if end > start else ""
+# _aligned_seq is shared with cram_scanner — the artefact-side view needs the
+# aligned segment because at the attractor the poly-G is what aligned and the
+# clip holds real sequence (mirror image of the driver-side view).
 
 
 def scan_artefacts_sa(
@@ -125,17 +115,25 @@ def scan_artefacts_sa(
             if cfg.filter_noise_alignments and is_noise_clip(_aligned_seq(read)):
                 continue
             primary_clip = _clip_side(read.cigarstring or "")
-            strand_b = "-" if primary_clip == "L" else "+"
+            # Abstain rather than defaulting to '+': an unclipped side cannot
+            # tell us the orientation, and reporting a fabricated one as
+            # measured is the defect this release exists to remove.
+            strand_b = {"L": "-", "R": "+"}.get(primary_clip, ".")
+            # One read is one piece of evidence — dedupe the keys it contributes
+            # to, since a chimera's SA entries often share a positional bucket.
+            seen_keys: dict[tuple, tuple[str, int]] = {}
             for sa_chrom, sa_pos, sa_strand, sa_cigar in _parse_sa_tag(sa):
                 # Don't re-cluster intra-artefact
                 if sa_chrom == ref_chrom and s - 1000 <= sa_pos <= e + 1000:
                     continue
                 sa_clip = _clip_side(sa_cigar)
-                strand_a = "-" if sa_clip == "L" else "+"
+                strand_a = {"L": "-", "R": "+"}.get(sa_clip, ".")
                 key = (sa_chrom, sa_pos // cfg.pos_tolerance, strand_a, strand_b)
+                seen_keys.setdefault(key, (sa_chrom, sa_pos))
+            for key, (sa_chrom, sa_pos) in seen_keys.items():
                 d = clusters.setdefault(key, dict(
                     sa_chrom=sa_chrom, sa_pos=sa_pos,
-                    strand_a=strand_a, strand_b=strand_b,
+                    strand_a=key[2], strand_b=key[3],
                     sr=0, mapqs=[], art_positions=[]))
                 d["sr"] += 1
                 d["mapqs"].append(read.mapping_quality)

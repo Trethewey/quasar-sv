@@ -124,6 +124,53 @@ def _longest_clip_seq(read) -> str:
     return best
 
 
+def _is_hard_clipped(read) -> bool:
+    """True if the alignment carries a hard clip (CIGAR op 5).
+
+    Supplementary alignments are hard-clipped, so their SEQ holds only the
+    aligned portion and ``_longest_clip_seq`` returns '' — which
+    ``is_noise_clip`` reads as "not noise", letting a junk read's supplementary
+    side through. Observed doing exactly that on real data: reads like
+    ``102H46M3H`` with SA entries onto a decoy contig were being clustered as
+    split-read evidence.
+
+    We cannot inspect the clipped sequence (it is not in the record), so judge
+    the aligned segment instead — see ``_aligned_is_noise``.
+    """
+    return bool(read.cigartuples) and any(op == 5 for op, _ in read.cigartuples)
+
+
+def _aligned_seq(read) -> str:
+    """The portion of the read actually aligned here (soft clips excluded)."""
+    if read.query_sequence is None or not read.cigartuples:
+        return ""
+    start = 0
+    op, ln = read.cigartuples[0]
+    if op == 4:
+        start = ln
+    end = len(read.query_sequence)
+    op, ln = read.cigartuples[-1]
+    if op == 4:
+        end -= ln
+    return read.query_sequence[start:end] if end > start else ""
+
+
+def read_is_noise(read) -> bool:
+    """True when a read's split-read evidence is sequencing junk.
+
+    Soft-clipped read: judge the clipped segment — that is the part claiming to
+    align elsewhere. Hard-clipped (supplementary) read: the clip is absent from
+    the record, so judge the aligned segment instead; a supplementary alignment
+    of an adapter/poly-G fragment is itself adapter/poly-G.
+    """
+    clip = _longest_clip_seq(read)
+    if clip:
+        return is_noise_clip(clip)
+    if _is_hard_clipped(read):
+        return is_noise_clip(_aligned_seq(read))
+    return False
+
+
 def is_noise_clip(seq: str) -> bool:
     """True when a soft-clip is a sequencing artefact rather than genomic sequence.
 
@@ -272,13 +319,14 @@ def scan_cram(
                 sa = read.get_tag("SA")
             except KeyError:
                 sa = ""
-            if sa and cfg.filter_noise_clips and is_noise_clip(_longest_clip_seq(read)):
-                # Adapter read-through / poly-G tail: not a junction. Drop the
-                # split-read evidence, and drop the read entirely rather than
-                # letting it fall through into the discordant path, where the
-                # same artefactual mapping would be recounted as a pair.
+            if sa and cfg.filter_noise_clips and read_is_noise(read):
+                # Adapter read-through / poly-G tail: the SPLIT-READ evidence is
+                # junk, but the read's MATE is mapped independently of the clip,
+                # so its discordant evidence is still real. Drop only the SA and
+                # let the read fall through to the discordant path — a read whose
+                # 3' tail degraded to poly-G can still be a genuine pair across a
+                # true junction.
                 sa = ""
-                continue
             if sa:
                 sa_entries = _parse_sa_tag(sa)
                 primary_clip = _clip_side(read.cigarstring or "")
@@ -290,15 +338,24 @@ def scan_cram(
                     pa = read.reference_start
                 else:
                     pa = read.reference_end or read.reference_start
+                # One read is one piece of evidence. A chimera's SA entries
+                # frequently land in the SAME positional bucket with the same
+                # clip side (measured at IGK: 403 multi-SA reads, 8 of them
+                # producing a duplicate key), so crediting per-entry would let a
+                # single read clear min_split_reads=2 and emit a call on its own.
+                # Dedupe the keys this read contributes to, preserving order.
+                seen_keys: dict[tuple, tuple[str, int]] = {}
                 for sa_chrom, sa_pos, sa_strand, sa_cigar in sa_entries:
                     sa_clip = _clip_side(sa_cigar)
                     strand_b = {"L": "-", "R": "+"}.get(sa_clip, ".")
-                    pb = sa_pos
-                    key = (sa_chrom, "SR", _bucket(pb, cfg.pos_tolerance), strand_a, strand_b)
+                    key = (sa_chrom, "SR", _bucket(sa_pos, cfg.pos_tolerance),
+                           strand_a, strand_b)
+                    seen_keys.setdefault(key, (sa_chrom, sa_pos))
+                for key, (sa_chrom, pb) in seen_keys.items():
                     cl = clusters.get(key)
                     if cl is None:
                         cl = _Cluster(chrom_b=sa_chrom, pos_b=pb,
-                                      strand_a=strand_a, strand_b=strand_b)
+                                      strand_a=key[3], strand_b=key[4])
                         clusters[key] = cl
                     cl.split_reads += weight
                     cl.pos_a_examples.append(pa)

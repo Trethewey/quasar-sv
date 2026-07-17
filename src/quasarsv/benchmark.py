@@ -133,6 +133,12 @@ class BenchmarkScore:
     # populated when a junction-support set is supplied.
     tp_detected: int = 0
     tp_lookup_only: int = 0
+    # Visibility of what was NOT scored. Quarantining contested truth is
+    # defensible; doing it silently is not — a reader must be able to see how
+    # much of the cohort the headline actually covers.
+    disputed_rows: int = 0          # quarantined truth rows encountered
+    skipped_samples: list[str] = field(default_factory=list)   # unscoreable
+    fp_exempted_disputed: int = 0   # calls matching a quarantined row
 
     @property
     def precision(self) -> float:
@@ -235,6 +241,9 @@ def score_calls_against_truth(
     tier_rank = {"T1": 0, "T2": 1, "T3": 2}
     accept_rank = {tier_rank[t] for t in accept_tiers}
     fp_tier_set = set(fp_tiers if fp_tiers is not None else accept_tiers)
+    skipped: list[str] = []
+    n_disputed = 0
+    n_fp_exempt = 0
 
     def _match(call_pair: frozenset[str], expected_pair: frozenset[str]) -> bool:
         if call_pair == expected_pair:
@@ -263,10 +272,16 @@ def score_calls_against_truth(
         sample_calls = calls_by_sample.get(sample, [])
         if restrict_to_scored_samples and not sample_calls:
             continue   # skip unscanned samples
-        # A sample whose truth is entirely disputed is not scoreable at all.
-        # Without this it would present as an empty expected set, which silently
-        # turns every T1 call into a false positive — the opposite of quarantine.
+        n_disputed += sum(1 for t in sample_truth if t.is_disputed)
+        # A sample with no positive and no negative truth is not scoreable at
+        # all: entirely-disputed, or documented-only (a published SV burden with
+        # no named gene pair). Without this it would present as an empty expected
+        # set, which silently turns every call into a false positive — the
+        # opposite of quarantine. Recorded so the exclusion is visible: these
+        # samples leave FP accounting too, which is a real limitation of the
+        # headline, not a neutral omission.
         if not any(t.is_positive or t.is_negative for t in sample_truth):
+            skipped.append(sample)
             continue
         score = SampleScore(sample=sample)
         score.is_negative_control = all(t.is_negative for t in sample_truth
@@ -314,6 +329,7 @@ def score_calls_against_truth(
             # A call matching a quarantined (disputed) truth row is neither
             # credited nor charged — the evidence is genuinely unresolved.
             if any(cp == d or _match(cp, d) for d in disputed_sets):
+                n_fp_exempt += 1
                 continue
             score.fp_t1_count += 1
 
@@ -326,6 +342,9 @@ def score_calls_against_truth(
         bench.fp += s.fp_t1_count
         bench.tp_detected += len(s.detected_pairs)
         bench.tp_lookup_only += len(s.lookup_only_pairs)
+    bench.disputed_rows = n_disputed
+    bench.skipped_samples = sorted(skipped)
+    bench.fp_exempted_disputed = n_fp_exempt
     return bench
 
 
@@ -335,8 +354,11 @@ def write_benchmark_tsv(score: BenchmarkScore, path: str | Path) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
+        # NB "fp_calls" counts calls at `fp_tiers` (default = accept_tiers, i.e.
+        # T1+T2), not T1 only — the column was previously named fp_t1 while
+        # counting both.
         w.writerow(["sample", "expected_pairs", "matched_pairs", "missed_pairs",
-                    "match_tiers", "t1_calls", "fp_t1", "negative_control",
+                    "match_tiers", "t1_calls", "fp_calls", "negative_control",
                     "detected_pairs", "lookup_only_pairs"])
         for sample, s in sorted(score.per_sample.items()):
             w.writerow([
@@ -360,6 +382,11 @@ def write_benchmark_tsv(score: BenchmarkScore, path: str | Path) -> None:
                     f"f1={score.f1:.4f}",
                     f"tp_detected={score.tp_detected}",
                     f"tp_lookup_only={score.tp_lookup_only}"])
+        # What the headline does NOT cover, stated rather than omitted.
+        w.writerow([f"# excluded: disputed_truth_rows={score.disputed_rows}",
+                    f"fp_exempted_by_quarantine={score.fp_exempted_disputed}",
+                    f"unscoreable_samples={len(score.skipped_samples)}",
+                    ";".join(score.skipped_samples)])
 
 
 def load_junction_support(
