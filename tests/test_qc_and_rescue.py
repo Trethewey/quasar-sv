@@ -77,6 +77,22 @@ def test_partner_inference_from_artefact_is_removed():
         rescue_ig_driver_pairs([], cfg=RescueConfig())
 
 
+def test_lineage_prior_is_gone_not_merely_ignored():
+    """The B/T prior must not survive as a control that does nothing.
+
+    Its only consumer was the rescue's choice of which IG locus to NAME as a
+    partner. With the naming removed, a retained `lineage` field (or a CLI
+    --lineage flag) would advertise a prior the pipeline never reads — the same
+    class of dishonesty as the fabrication itself.
+    """
+    assert not hasattr(RescueConfig(), "lineage")
+    import inspect
+    from quasarsv.qc import apply_default_qc
+    params = inspect.signature(apply_default_qc).parameters
+    assert "sample_lineage" not in params
+    assert "lineage_default" not in params
+
+
 def test_artefact_cooccurrence_never_invents_a_partner():
     """The exact Karpas-1106P pattern that used to yield a T1 BCL6-IGH call.
 
@@ -98,7 +114,7 @@ def test_artefact_cooccurrence_never_invents_a_partner():
         c.qc_flags.append("builtin_artefact_locus")
 
     n_before = len(calls)
-    flag_artefact_masked_breakends(calls, cfg=RescueConfig(lineage="B"))
+    flag_artefact_masked_breakends(calls, cfg=RescueConfig())
 
     assert len(calls) == n_before, "no synthetic calls may be created"
     pairs = {(c.gene_a, c.gene_b) for c in calls}

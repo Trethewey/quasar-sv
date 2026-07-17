@@ -98,31 +98,9 @@ def cmd_annotate(args) -> int:
     return 0
 
 
-def _build_sample_lineage(args) -> tuple[dict[str, str] | None, str]:
-    """Return (per-sample lineage map, default lineage) from CLI args.
-
-    Sources, in priority order:
-      1. ``--metadata`` XLSX/TSV (per-sample lineage derived from cohort label).
-      2. ``--lineage``  fallback default for samples not in the metadata file.
-    """
-    default = getattr(args, "lineage", None) or "B"
-    map_: dict[str, str] | None = None
-    meta_path = getattr(args, "metadata", None)
-    if meta_path:
-        from .metadata import load_cohort_metadata_xlsx, lineage_index_from_metadata
-        try:
-            items = load_cohort_metadata_xlsx(meta_path)
-            map_ = lineage_index_from_metadata(items)
-        except Exception as exc:    # noqa: BLE001
-            print(f"[lineage] failed to load --metadata {meta_path}: {exc}", file=sys.stderr)
-            map_ = None
-    return map_, default
-
-
 def cmd_qc(args) -> int:
     calls = read_fusion_calls_tsv(args.input)
-    sample_lineage, lineage_default = _build_sample_lineage(args)
-    apply_default_qc(calls, sample_lineage=sample_lineage, lineage_default=lineage_default)
+    apply_default_qc(calls)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     write_fusion_calls_tsv(calls, str(out))
@@ -219,8 +197,7 @@ def cmd_scan_cram(args) -> int:
     per_caller = {"quasar": bps, "quasar_sa": sa_bps}
     calls = merge_caller_calls(per_caller, cfg=MergeConfig(pos_tolerance=250))
     annotate_calls(calls)
-    sample_lineage, lineage_default = _build_sample_lineage(args)
-    apply_default_qc(calls, sample_lineage=sample_lineage, lineage_default=lineage_default)
+    apply_default_qc(calls)
     tsv = out_dir / f"{args.sample}.fusions.tsv"
     write_fusion_calls_tsv(calls, str(tsv))
     write_fusion_calls_json(calls, str(out_dir / f"{args.sample}.fusions.json"))
@@ -325,8 +302,7 @@ def cmd_run(args) -> int:
         per_caller.setdefault(b.evidence.caller, []).append(b)
     calls = merge_caller_calls(per_caller, cfg=MergeConfig(pos_tolerance=args.tolerance))
     annotate_calls(calls)
-    sample_lineage, lineage_default = _build_sample_lineage(args)
-    apply_default_qc(calls, sample_lineage=sample_lineage, lineage_default=lineage_default)
+    apply_default_qc(calls)
 
     tsv = out_dir / f"{args.sample}.fusions.tsv"
     write_fusion_calls_tsv(calls, str(tsv))
@@ -385,19 +361,9 @@ def main(argv: list[str] | None = None) -> int:
     p_ann.add_argument("--json", help="optional JSON sibling output")
     p_ann.set_defaults(func=cmd_annotate)
 
-    def _add_lineage_args(p: argparse.ArgumentParser) -> None:
-        p.add_argument("--lineage", choices=["B", "T", "any"], default="B",
-                       help="default lymphoma lineage prior for the artefact-rescue "
-                            "IG partner selection (B=IGH/IGK/IGL only, T=TRA/TRB/TRG/TRD only; "
-                            "default B)")
-        p.add_argument("--metadata",
-                       help="cohort metadata XLSX with a 'Cohort' column to auto-infer "
-                            "per-sample lineage (overrides --lineage per sample)")
-
     p_qc = sub.add_parser("qc", help="apply post-merge QC flags")
     p_qc.add_argument("--input", required=True)
     p_qc.add_argument("--output", required=True)
-    _add_lineage_args(p_qc)
     p_qc.set_defaults(func=cmd_qc)
 
     p_rep = sub.add_parser("report", help="render HTML reports from a FusionCall TSV")
@@ -452,7 +418,6 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--sample", required=True)
     p_run.add_argument("--output-dir", required=True)
     p_run.add_argument("--tolerance", type=int, default=250)
-    _add_lineage_args(p_run)
     p_run.set_defaults(func=cmd_run)
 
     p_scan = sub.add_parser("call",
@@ -479,7 +444,6 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--full-weight-mapq", type=int, default=30,
                         help="MAPQ at and above which a read contributes weight 1.0 "
                              "(below tapers linearly to 0); default 30")
-    _add_lineage_args(p_scan)
     p_scan.set_defaults(func=cmd_scan_cram)
 
     args = parser.parse_args(argv)

@@ -38,25 +38,16 @@ unresolvable breakend as a resolved fusion.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
 
 from .model import FusionCall
 
 
-# Lineage-specific IG / TR locus sets. Retained because event classification and
-# reporting still need to know which loci are antigen-receptor loci; no longer
-# used to choose a partner.
+# Antigen-receptor locus sets. Retained because event classification and
+# reporting still need to know which loci are IG/TR; no longer used to choose a
+# partner. ``_allowed_igs_for_lineage`` is deliberately gone with the prior.
 BCELL_IGS = {"IGH", "IGK", "IGL", "IGH_Emu", "IGH_3RR"}
 TCELL_IGS = {"TRA", "TRB", "TRG", "TRD"}
 IG_LOCI = BCELL_IGS | TCELL_IGS
-
-
-def _allowed_igs_for_lineage(lineage: str) -> set[str]:
-    if lineage == "B":
-        return BCELL_IGS
-    if lineage == "T":
-        return TCELL_IGS
-    return BCELL_IGS | TCELL_IGS
 
 
 @dataclass
@@ -67,9 +58,13 @@ class RescueConfig:
     ``emit_canonical_alternatives``, ``noncanonical_fanout_ratio``, the pair
     caps) are gone: they tuned a fabrication. No threshold on a signal-free
     channel can produce a valid partner assignment.
+
+    ``lineage`` is gone too, and it is worth being explicit about why: the
+    B-cell/T-cell prior existed solely to restrict which IG locus the rescue was
+    allowed to NAME as a partner. With the naming removed, the prior has no
+    consumer — nothing downstream reads it. Keeping the field would advertise a
+    control that does nothing.
     """
-    # Default lymphoma lineage assumption (B-cell). Overrideable per-sample.
-    lineage: str = "B"
     # Tier ceiling for a call whose partner breakend is unresolvable.
     unresolved_tier: str = "T3"
 
@@ -77,7 +72,6 @@ class RescueConfig:
 def flag_artefact_masked_breakends(
     calls: list[FusionCall],
     cfg: RescueConfig | None = None,
-    sample_lineage: Mapping[str, str] | None = None,
 ) -> list[FusionCall]:
     """Annotate calls whose partner breakend lands in a masked artefact region.
 

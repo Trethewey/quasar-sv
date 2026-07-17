@@ -22,12 +22,13 @@ Quasar combines a pysam-based read scanner with lymphoma-specific
 annotation and tier-promotion logic. Three design choices distinguish
 it from general-purpose SV callers:
 
-**Artefact-aware translocation rescue.** Chimeric reads from t(3;14)
-BCL6-IGH and related IG-switch events route into a known GRCh38
-reference artefact at chr2:32916, where they are absorbed by a
-poly-G motif and lost to ordinary detection. Quasar's rescue layer
-reconstructs the underlying translocation from artefact-mediated
-signal.
+**Artefact-aware breakend handling.** A known GRCh38 poly-G attractor at
+chr2:32,916 absorbs adapter read-through and 2-colour poly-G tails from
+every locus at a near-constant rate, carrying no information about what
+joins to what. Quasar filters these clips at source and marks any call
+whose partner breakend falls in a masked artefact region, so an
+unresolvable breakend is reported as `partner_undetermined` rather than
+being assigned a partner it cannot measure.
 
 **Canonical-partner annotation.** A curated table of lymphoma
 translocation partners drives clinical-tier promotion of annotated
@@ -85,8 +86,12 @@ Calls are stratified into three confidence tiers:
 | Document | Content |
 |----------|---------|
 | [`docs/algorithm_vignette.md`](docs/algorithm_vignette.md) | Full algorithm walkthrough |
-| [`docs/benchmark_results.md`](docs/benchmark_results.md) | Head-to-head benchmark and caveats |
-| [`docs/quasar_vignette.docx`](docs/quasar_vignette.docx) | Printable algorithm summary |
+
+No head-to-head benchmark is published. An earlier one was withdrawn: every
+external caller in it had been run on region-restricted input by our own
+harness, so their scores measured our configuration rather than their
+performance. Fair genome-wide re-runs are in progress; no comparative claim
+will be made until they are complete and scored under identical rules.
 
 ## Scope and limitations
 

@@ -56,4 +56,7 @@ quasar = "quasarsv.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-quasarsv = ["data/*.tsv", "data/*.json", "reports/templates/*.html"]
+# data/*.tsv is the panel, artefact mask, partner table and truth set. The
+# former data/*.json and reports/templates/*.html globs matched nothing and are
+# dropped — reports/ is pure Python and templates are inlined.
+quasarsv = ["data/*.tsv"]

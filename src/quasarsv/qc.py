@@ -270,36 +270,28 @@ def demote_physiological_noise(calls: list[FusionCall]) -> int:
     return n
 
 
-def apply_default_qc(
-    calls: list[FusionCall],
-    sample_lineage: dict[str, str] | None = None,
-    lineage_default: str = "B",
-) -> list[FusionCall]:
+def apply_default_qc(calls: list[FusionCall]) -> list[FusionCall]:
     """One-shot: built-in artefact mask + recurrent-position + short-range flags
     + artefact-masked-breakend annotation + canonical-partner tier promotion.
+
+    The former ``sample_lineage`` / ``lineage_default`` parameters are gone. The
+    B-cell/T-cell prior existed only to constrain which IG locus the artefact
+    rescue was allowed to name as a partner; with that inference removed, nothing
+    consumes a lineage. Accepting the arguments would have left the CLI's
+    ``--lineage`` / ``--metadata`` silently inert — a control that does nothing.
 
     Parameters
     ----------
     calls
         FusionCall list (mutated in place).
-    sample_lineage
-        Optional ``{sample_id: "B" | "T" | "any"}`` lineage hint per sample.
-    lineage_default
-        Lineage assumption used when ``sample_lineage`` is empty / missing the
-        sample. Defaults to ``"B"`` (B-cell lymphoma — the package's primary
-        use-case).
     """
     flag_builtin_artefact_loci(calls)
     flag_recurrent_position_artefacts(calls)
     flag_short_range_intrachr(calls)
     # Runs AFTER masking so it can see which calls were artefact-flagged. Marks
     # unresolvable breakends; does not invent partners for them.
-    from .rescue import RescueConfig, flag_artefact_masked_breakends
-    flag_artefact_masked_breakends(
-        calls,
-        cfg=RescueConfig(lineage=lineage_default),
-        sample_lineage=sample_lineage,
-    )
+    from .rescue import flag_artefact_masked_breakends
+    flag_artefact_masked_breakends(calls)
     # Final pass: canonical-partner promotion
     from .promote import promote_known_partners
     promote_known_partners(calls)

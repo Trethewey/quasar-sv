@@ -67,8 +67,8 @@ Source-file references are the authoritative implementation.
                               │
                               ▼
       ┌───────────────────────────────────────────────────────┐
-   8  │  IG-driver rescue  (rescue.py)                        │
-      │   • lineage prior (B-cell IGs only by default)        │
+   8  │  Artefact-masked breakend annotation  (rescue.py)     │
+      │   • partner_undetermined; no partner is invented      │
       │   • canonical-partner IG retention                    │
       │   • primary + ambiguous alternatives per top driver   │
       │   • fan-out control on weak shared signals            │
@@ -152,20 +152,37 @@ SA-tag points to the read's true other end. We:
 3. Emit `BreakpointCall` records keyed on the TRUE partner (chrom_a)
    versus the artefact (chrom_b), caller `quasar_sa`.
 
-This is the "reverse-direction" scanner — it looks at the noise hotspot
-to recover the underlying real translocations.
+This is the "reverse-direction" scanner. Note the geometry: at the attractor the
+ALIGNED segment is the poly-G run and the soft-clip holds real sequence — the
+mirror of the driver-side view — so the noise filter tests the aligned segment
+here. Reads whose aligned segment is adapter/poly-G are rejected: their SA tag
+names the junk read's origin locus, not a translocation partner. What survives
+is a genuine chimera that happens to overlap the artefact window.
 
-## 3 — Chromosome-level SA inference (opt-in)
+## 3 — Chromosome-level SA inference — REMOVED
 ### Source: `src/quasarsv/scanners/sa_chrom_inference.py`
 
-Activated by `scan-cram --chrom-sa-inference`. At each artefact locus,
-tallies SA-tag mate chromosomes across all reads. Records the dominant
-non-self chromosomes as putative partners.
+Formerly opt-in via `scan-cram --chrom-sa-inference`: at each artefact locus it
+tallied SA-tag chromosomes and recorded the dominant non-self chromosomes as
+putative partners, emitting the **median of every SA position on that
+chromosome** as the breakpoint coordinate and naming whichever gene lay nearest.
 
-In practice this surfaced limitations rather than helping: on PMBL the
-SA-tag distribution at chr2:32916 is roughly proportional to baseline
-read depth and doesn't preferentially point to chr14 (IGH). Kept for
-diagnostic use; the rescue (step 8) no longer relies on it.
+Removed. Two independent defects:
+
+* The coordinate was invented. Those SA positions are unrelated to one another,
+  so their median is an arbitrary point that need not lie near any junction —
+  and a median that happens to land near IGH yields a confident-looking IGH
+  partner.
+* The input is not translocation signal. Reads inside the attractor are
+  library-wide adapter/poly-G junk, so ranking their SA chromosomes ranks
+  chromosomes roughly by size, and every large chromosome clears a 2% share.
+
+The vignette's own note recorded the symptom — "the SA-tag distribution at
+chr2:32916 is roughly proportional to baseline read depth and doesn't
+preferentially point to chr14 (IGH)" — which is exactly what a signal-free
+channel looks like. The function now raises `NotImplementedError`. Diffuse
+partner signal is recovered from discordant mates, which carry a real
+coordinate.
 
 ## 4 — External VCF parsing
 ### Source: `src/quasarsv/parsers/{manta,gridss,delly,svaba,tiddit,factera}.py`
@@ -235,7 +252,8 @@ Three filters, advisory by default:
 1. **`flag_builtin_artefact_loci`** — any breakpoint landing in
    `data/artefact_loci.tsv` is flagged `builtin_artefact_locus`. Tier is
    forced down to T3 (this is the only auto-downgrade — these are reliably
-   not real). The rescue (step 8) later synthesises calls from these.
+   not real). Step 8 marks these as partner_undetermined; nothing is
+synthesised from them.
 2. **`flag_recurrent_position_artefacts`** — a `(chrom, pos//500bp)`
    window with ≥10 distinct partners on ≥3 chromosomes is flagged
    `recurrent_artefact`. Not auto-downgraded; consumed by step 11.
@@ -245,43 +263,45 @@ Three filters, advisory by default:
    ST6GAL1, SOCS1, REL, CIITA`) — clustered short-range breaks at aSHM
    targets are real B-cell biology.
 
-## 8 — IG-driver rescue
+## 8 — Artefact-masked breakend annotation
 ### Source: `src/quasarsv/rescue.py`
 
-When step 7 flags many calls as `builtin_artefact_locus`, the underlying
-biology is often a real driver-IG translocation whose IG-switch side
-mismapped to the polyG attractor. The rescue synthesises putative
-driver-IG `FusionCall` records from this signal.
+**This step used to synthesise driver-IG fusions. It no longer does, and the
+reason matters more than the mechanism.**
 
-For each sample:
+The old logic: when step 7 flagged calls as `builtin_artefact_locus`, it assumed
+the underlying biology was a real driver-IG translocation whose IG-switch side
+had mismapped to the poly-G attractor, and reconstructed the pair — choosing the
+IG partner from `known_partners.tsv` plus a B-cell lineage prior, with **no read
+linking driver to partner**, then promoting canonical pairs to T1 with the
+artefact-side read counts displayed as junction support.
 
-* Group artefact-flagged calls by `(sample, non_artefact_gene)`. Sum
-  per-gene SR and PE.
-* **Apply lineage prior:** restrict IG candidates to
-  `BCELL_IGS = {IGH, IGK, IGL, IGH_Emu, IGH_3RR}` (default) or
-  `TCELL_IGS = {TRA, TRB, TRG, TRD}` — per-sample override via
-  `sample_lineage` (auto-inferred from cohort metadata: PMBL/DLBCL/FL/MCL/
-  MALT/BL/MZL/LPL/CLL → B; ATLL/PTCL/ALCL/T-cell NHL → T).
-* Keep drivers with `SR ≥ 30` AND ≥ `ratio_keep × top_driver_sr` (default
-  0.20).
-* Keep IGs with `SR ≥ 30` AND ≥ `ratio_keep × top_ig_sr` **OR** the IG is
-  a canonical `known_partner` of any kept driver (bypasses the ratio
-  filter — keeps IGH in the pool even when IGL has 30× more SR).
-* Score every (driver, IG) pair as `min(driver_sr, ig_sr)`, sort by
-  `(is_known_partner desc, score desc)`.
-* Identify the top canonical driver. Emit up to 3 IGs (canonical or not)
-  for it; **all but the highest-scoring are tagged with
-  `ig_partner_ambiguous`** in `qc_flags`.
-* For other drivers: emit at most 1 canonical pair, and only if its score
-  passes `noncanonical_fanout_ratio × top_canonical_score` (default 0.20).
-  This prevents one shared weak IGH signal from lighting up BCL2-IGH,
-  CCND1-IGH, MALT1-IGH simultaneously.
-* Non-canonical alts: cap at `max_noncanonical_pairs_per_sample = 4` per
-  sample, top scored.
+That inference was invalid. Measured on the WGS validation cohort:
 
-Each synthetic call is tagged `inferred_via_artefact_rescue`, tier T2 by
-default but promoted to T1 if the pair is in `known_partners.tsv`.
+* **The channel carries no signal.** Every locus sheds reads to chr2:32,916 at
+  ~200-280 split reads per 10k, rearranged or not. In Karpas-1106P, BCL6
+  (204/10k, rearrangement claimed) sheds *less* than TP53 (240/10k) and NOTCH1
+  (337/10k), neither of which is rearranged. "Both loci hit the same artefact"
+  is true of every pair of loci in the genome.
+* **The reads are not genomic.** The clipped segments are Illumina adapter
+  read-through and 2-colour poly-G tails — identical at BCL6, IGH, TP53 and ATM.
+  No threshold on sequencing chemistry can yield a partner.
+* **The masking premise was false.** Discordant mates do not depend on junction
+  sequence, so a poly-G attractor cannot hide them. MD903 shows a genuine
+  BCL6-IGH at PE=16 by pairs alone. Karpas-1106P and U2940 — the two samples the
+  rescue "uniquely caught" — have zero BCL6-IGH reads of either kind, and
+  break-apart FISH (Dai 2015, PMID:26599546) shows BCL6 and IG-H/K/L germline in
+  both. The translocation is absent, not masked.
 
+What the step does now: mark any call whose partner breakend falls in a masked
+artefact region with `partner_undetermined` and cap it at a review tier, so an
+unresolvable breakend can never be presented as a resolved fusion. It invents
+nothing and emits no synthetic calls. `rescue_ig_driver_pairs()` raises
+`NotImplementedError`; the lineage prior is gone entirely, because its only
+consumer was choosing a partner to name.
+
+A real driver-IG translocation is recovered by the ordinary scanner path, from
+reads that actually join the two loci.
 ## 9 — Known-canonical promotion
 ### Source: `src/quasarsv/promote.py`
 
@@ -368,32 +388,44 @@ MergeConfig(pos_tolerance=250, ...)
 TierThresholds(...)   # the T1/T2/T3 rule constants
 
 RescueConfig(
-    min_artefact_sr_per_side=30,
-    ratio_keep=0.20,
-    max_pairs_per_sample=12,
-    lineage="B",                         # B | T | any
-    emit_canonical_alternatives=True,
-    max_canonical_igs_per_driver=3,
-    noncanonical_fanout_ratio=0.20,
-    max_noncanonical_pairs_per_sample=4,
+    unresolved_tier="T3",   # tier ceiling for an unresolvable breakend
 )
+# The partner-inference knobs are gone: they tuned a fabrication. No threshold
+# on a signal-free channel can produce a valid partner assignment.
 ```
 
-CLI flags that pipe these through: `quasarsv scan-cram --lineage B
---metadata cohort_metadata.xlsx --chrom-sa-inference …`
+`--lineage`, `--metadata` and `--chrom-sa-inference` have been removed: the
+first two fed only the partner inference, and the third fabricated a
+breakpoint coordinate from a median of unrelated positions.
 
 ---
 
 ## Where it currently sits
 
-Measured against `data/cohort_truth.tsv` on 16 positive-truth + 7 negative-
-control WGS samples (run `quasarsv benchmark output/wgs_cohort/*/*.fusions.tsv`):
+Measured against `data/cohort_truth.tsv` — corrected against primary literature —
+on the 14-sample cell-line WGS cohort, and against an independent read-level
+junction oracle built directly from the CRAMs:
 
-* **Strict gene-pair match:** P = 0.75, R = 0.75, **F1 = 0.75**
-* **Relaxed canonical-IG match:** P = 0.93, R = 0.81, **F1 = 0.87**
+* **Clinically actionable (T1):** P = 1.000, R = 0.667, **F1 = 0.800**, with
+  **zero false positives**, including zero on both confirmed negative controls.
+* **Review list (T1+T2):** P = 0.375, R = 1.000, F1 = 0.545.
+* **Detection vs lookup: 12 detected, 0 lookup-only.** Every true positive is
+  backed by a read-level junction; none is attributable to a partner lookup.
 
-Three remaining FNs (NU-DHL-1 BCL6-IGH, SU-DHL-9 MYC-IGH, OCI-Ly19 BCL2-IGH
-@T2 only) plus one FP. Comparison against Manta / Delly / SvABA / GRIDSS /
-TIDDIT is running.
+The relaxed metric this section used to lead with is gone. `--relax-canonical-ig-
+partner` let BCL6-IGL match a truth of BCL6-IGH, and a driver-only call match a
+driver-IG truth; combined with a canonical-partner prior and a truth set encoding
+the same canonical translocations, it scored the tool for identifying a driver
+and looking its textbook partner up. It survives only as an explicitly labelled
+side-metric and must never be the headline.
 
-The roadmap for raising F1 further lives in `docs/precision_techniques.md`.
+Four confirmed events surface at T2 rather than T1 (all with discordant support
+of 5-9), which is the recall gap. Tier thresholds have deliberately NOT been
+tuned to close it: tuning to the truth set is what made the previous benchmark
+circular.
+
+**No comparison against Manta / Delly / SvABA / GRIDSS / TIDDIT is published.**
+An earlier one was withdrawn — every external caller had been run on
+region-restricted input by this project's own harness, so their scores measured
+our configuration, not their performance. Fair genome-wide re-runs are in
+progress.
