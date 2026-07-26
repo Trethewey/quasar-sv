@@ -8,8 +8,8 @@ Author: Chris Trethewey
 This product includes software developed by Chris Trethewey
 and project contributors.
 
-This project is licensed under the Apache License, Version 2.0.
-See LICENSE for the full license text.
+This project is licensed under the GNU Affero General Public License,
+Version 3 (AGPL-3.0-or-later). See LICENSE for the full license text.
 
 Third-party tools driven by the benchmark harness retain their own licenses:
   * Manta    — GPL-3.0 (Illumina)
@@ -18,13 +18,13 @@ Third-party tools driven by the benchmark harness retain their own licenses:
   * SvABA    — GPL-3.0 (Broad Institute)
   * TIDDIT   — GPL-3.0 (SciLifeLab)
   * FACTERA  — Stanford University; see https://factera.stanford.edu/
-  * samtools / bcftools / bwa — MIT (Wellcome Sanger Institute)
-  * htslib   — MIT (Wellcome Sanger Institute)
+  * samtools / bcftools / htslib — MIT (Wellcome Sanger Institute)
+  * bwa      — GPL-3.0 (Heng Li)
 
 None of these tools is bundled or redistributed here. Quasar parses their output
 when it is supplied; the benchmark harness invokes them only if the user has
 installed them independently.
 
-The Apache-2.0 license on Quasar applies only to Quasar's own source code
+The AGPL-3.0 license on Quasar applies only to Quasar's own source code
 (src/quasarsv/, tests/, docs/). Outputs produced by running Quasar over data the
 user supplies belong to the user.

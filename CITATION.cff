@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: Quasar
+message: >-
+  If you use this software, please cite it using the metadata below.
+type: software
+authors:
+  - family-names: Trethewey
+    given-names: Chris
+    website: "https://christrethewey.dev/"
+    # Add your ORCID here if you have one, e.g. orcid: "https://orcid.org/0000-0000-0000-0000"
+repository-code: "https://github.com/Trethewey/Quasar"
+url: "https://github.com/Trethewey/Quasar"
+abstract: >-
+  Quasar is a structural-variant and fusion caller for next-generation
+  sequencing data, specialised for lymphoma diagnostics. It identifies
+  clinically relevant translocations from aligned reads in BAM or CRAM and
+  emits VCF 4.3 alongside a per-sample report. Alpha / beta: validated on a
+  14-sample lymphoma cell-line cohort; not yet validated on patient samples.
+keywords:
+  - bioinformatics
+  - structural variants
+  - gene fusions
+  - lymphoma
+  - cancer genomics
+license: AGPL-3.0-or-later
+version: "0.1.0"

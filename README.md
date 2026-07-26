@@ -5,7 +5,7 @@
 <br>
 
 <p align="center">
-  <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache_2.0-blue.svg"></a>
+  <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-AGPL_3.0-blue.svg"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
   <a href="#scope-and-limitations"><img alt="Status" src="https://img.shields.io/badge/status-alpha-orange.svg"></a>
 </p>
@@ -132,4 +132,11 @@ Chris Trethewey · [christrethewey.dev](https://christrethewey.dev/) · [github.
 
 ## Licence
 
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Quasar is free and open source, and AGPL keeps it that way: anyone may use,
+study and modify it, but any modified version that is distributed **or offered
+over a network** must also be released under the AGPL. Nobody can take Quasar
+closed or behind a paywall. If you use it in published work, please cite it —
+see [CITATION.cff](CITATION.cff).

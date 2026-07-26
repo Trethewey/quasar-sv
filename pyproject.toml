@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Ensemble structural-variant and fusion detection for lymphoma NGS"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "Chris Trethewey", email = "chris@christrethewey.dev" }]
 maintainers = [{ name = "Chris Trethewey" }]
 keywords = [
@@ -23,7 +23,7 @@ keywords = [
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: Apache Software License",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
