@@ -5,7 +5,7 @@ GRCh38 poly-G attractor at chr2:32,916 does NOT preferentially absorb chimeric
 IG-switch fragments. It absorbs **2-colour-chemistry poly-G tails and adapter
 read-through from the entire library**, at a uniform rate: every locus measured
 on the WGS validation cohort sheds ~200-280 such reads per 10k, rearranged or
-not (``quasar_development/accuracy_audit_2026-07-16/artefact_specificity.py``).
+not.
 
 So harvesting SA tags from reads inside the attractor does not "reveal the real
 translocation partners" — for poly-G reads it merely enumerates whichever locus

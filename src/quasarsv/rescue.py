@@ -7,7 +7,7 @@ lineage prior, and promoted canonical pairs to T1 with the artefact-side read
 counts displayed as if they were junction support.
 
 That inference was invalid and has been removed. Measurements on the WGS
-validation cohort (``quasar_development/accuracy_audit_2026-07-16/``):
+validation cohort:
 
 * **The artefact channel carries no signal.** Every locus sheds reads to
   chr2:32,916 at an essentially constant rate — ~200-280 split reads per 10k
