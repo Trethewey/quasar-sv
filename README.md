@@ -46,15 +46,15 @@ SSH (below) or over HTTPS with a personal access token. There is no anonymous
 install route yet.
 
 ```bash
-git clone git@github.com:Trethewey/Quasar.git
-cd Quasar
+git clone git@github.com:Trethewey/quasar-sv.git
+cd quasar-sv
 pip install ".[bam]"
 ```
 
 Or in one step, without keeping the clone:
 
 ```bash
-pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/Quasar.git"
+pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/quasar-sv.git"
 ```
 
 The `[bam]` extra pulls in pysam, without which the BAM/CRAM scanner cannot run.
@@ -123,7 +123,7 @@ repository:
 
 ```
 Trethewey C. Quasar: structural-variant calling for lymphoma sequencing.
-https://github.com/Trethewey/Quasar (2026).
+https://github.com/Trethewey/quasar-sv (2026).
 ```
 
 ## Author

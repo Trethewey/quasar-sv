@@ -42,8 +42,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://christrethewey.dev/"
-Repository = "https://github.com/Trethewey/Quasar"
-Issues = "https://github.com/Trethewey/Quasar/issues"
+Repository = "https://github.com/Trethewey/quasar-sv"
+Issues = "https://github.com/Trethewey/quasar-sv/issues"
 
 [project.optional-dependencies]
 bam = ["pysam>=0.22"]

@@ -8,8 +8,8 @@ authors:
     given-names: Chris
     website: "https://christrethewey.dev/"
     # Add your ORCID here if you have one, e.g. orcid: "https://orcid.org/0000-0000-0000-0000"
-repository-code: "https://github.com/Trethewey/Quasar"
-url: "https://github.com/Trethewey/Quasar"
+repository-code: "https://github.com/Trethewey/quasar-sv"
+url: "https://github.com/Trethewey/quasar-sv"
 abstract: >-
   Quasar is a structural-variant and fusion caller for next-generation
   sequencing data, specialised for lymphoma diagnostics. It identifies
