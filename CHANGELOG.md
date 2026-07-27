@@ -4,11 +4,11 @@ All notable changes to Quasar will be recorded here.
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] — Alpha (initial release)
+## [0.1.0] — Beta (initial release)
 
-First public release. Tagged alpha because the benchmark cohort is small
+First public release. Tagged beta because the benchmark cohort is small
 (n=14 WGS samples) and held-out validation has not yet been performed —
-see `README.md` § "Scope honesty".
+see `README.md` § "Scope and limitations".
 
 ### Added
 - Ensemble structural-variant detection across Manta, GRIDSS, Delly, SvABA,

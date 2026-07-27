@@ -7,7 +7,7 @@
 <p align="center">
   <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-AGPL_3.0-blue.svg"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
-  <a href="#scope-and-limitations"><img alt="Status" src="https://img.shields.io/badge/status-alpha-orange.svg"></a>
+  <a href="#scope-and-limitations"><img alt="Status" src="https://img.shields.io/badge/status-beta-yellow.svg"></a>
 </p>
 
 Quasar is a structural-variant caller for next-generation sequencing data,
@@ -106,7 +106,7 @@ will be made until they are complete and scored under identical rules.
 
 ## Scope and limitations
 
-Quasar v0.1.0 is an alpha release. Validation has been performed on a
+Quasar v0.1.0 is a beta release. Validation has been performed on a
 14-sample lymphoma cell-line WGS cohort. Held-out cohorts, broad
 cohort generalisability, and patient-sample performance have not been
 assessed. Quasar is not intended for clinical decision-making without

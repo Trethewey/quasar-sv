@@ -14,7 +14,7 @@ abstract: >-
   Quasar is a structural-variant and fusion caller for next-generation
   sequencing data, specialised for lymphoma diagnostics. It identifies
   clinically relevant translocations from aligned reads in BAM or CRAM and
-  emits VCF 4.3 alongside a per-sample report. Alpha / beta: validated on a
+  emits VCF 4.3 alongside a per-sample report. Beta: validated on a
   14-sample lymphoma cell-line cohort; not yet validated on patient samples.
 keywords:
   - bioinformatics
