@@ -41,12 +41,8 @@ corroborated by multiple independent callers.
 
 ## Installation
 
-**This repository is private.** Installing therefore requires access to it, over
-SSH (below) or over HTTPS with a personal access token. There is no anonymous
-install route yet.
-
 ```bash
-git clone git@github.com:Trethewey/quasar-sv.git
+git clone https://github.com/Trethewey/quasar-sv.git
 cd quasar-sv
 pip install ".[bam]"
 ```
@@ -54,7 +50,7 @@ pip install ".[bam]"
 Or in one step, without keeping the clone:
 
 ```bash
-pip install "quasar-sv[bam] @ git+ssh://git@github.com/Trethewey/quasar-sv.git"
+pip install "quasar-sv[bam] @ git+https://github.com/Trethewey/quasar-sv.git"
 ```
 
 The `[bam]` extra pulls in pysam, without which the BAM/CRAM scanner cannot run.
